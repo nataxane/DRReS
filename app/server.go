@@ -2,10 +2,10 @@ package main
 
 import (
 	"bufio"
+	"github.com/DRReS/core"
 	"io"
 	"log"
 	"net"
-	"storage/core"
 )
 
 var clientId = 0

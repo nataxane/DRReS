@@ -8,19 +8,17 @@ import (
 func ProcessQuery(query string, storage Storage) (result []byte) {
 	op, key, value := parseQuery(query)
 
-	table := storage.tables["default"]
-
 	switch op {
 	case "":
 		result = []byte("Empty query")
 	case "get":
-		result = processGetQuery(key, table)
+		result = processGetQuery(storage,"default", key)
 	case "put":
-		result = processPutQuery(key, value, table)
+		result = processPutQuery(storage, "default", key, value)
 	case "delete":
-		result = processDeleteQuery(key, table)
+		result = processDeleteQuery(storage, "default", key)
 	case "show":
-		result = showTable(table)
+		result = showTable(storage, "default")
 	default:
 		result = []byte("Unknown operation")
 	}
@@ -28,7 +26,7 @@ func ProcessQuery(query string, storage Storage) (result []byte) {
 	return
 }
 
-func parseQuery(query string) (op string, key string, value string) {
+func parseQuery(query string) (op, key, value string) {
 	splittedQuery := strings.SplitN(query, " ", 3)
 
 	if len(splittedQuery) >= 1 {
@@ -45,13 +43,13 @@ func parseQuery(query string) (op string, key string, value string) {
 	return
 }
 
-func processGetQuery(key string, table Table) (result []byte) {
+func processGetQuery(storage Storage, tableName, key string) (result []byte) {
 	if key == "" {
 		result = []byte("Empty key")
 		return
 	}
 
-	value, err := table.Get(key)
+	value, err := storage.Get(tableName, key)
 	if err == nil {
 		result = []byte(value)
 	} else {
@@ -61,13 +59,13 @@ func processGetQuery(key string, table Table) (result []byte) {
 	return
 }
 
-func processPutQuery(key string, value string, table Table) (result []byte) {
+func processPutQuery(storage Storage, tableName, key, value string) (result []byte) {
 	if key == "" {
 		result = []byte("Empty key")
 		return
 	}
 
-	err := table.Put(key, Record(value))
+	err := storage.Put(tableName, key, Record(value))
 	if err == nil {
 		result = []byte("ok")
 	} else {
@@ -77,13 +75,13 @@ func processPutQuery(key string, value string, table Table) (result []byte) {
 	return
 }
 
-func processDeleteQuery(key string, table Table) (result []byte) {
+func processDeleteQuery(storage Storage, tableName, key string) (result []byte) {
 	if key == "" {
 		result = []byte("Empty key")
 		return
 	}
 
-	err := table.Delete(key)
+	err := storage.Delete(tableName, key)
 	if err == nil {
 		result = []byte("ok")
 	} else {
@@ -93,10 +91,10 @@ func processDeleteQuery(key string, table Table) (result []byte) {
 	return
 }
 
-func showTable(table Table) (result []byte) {
+func showTable(storage Storage, tableName string) (result []byte) {
 	var records []string
 
-	for key, value := range table {
+	for key, value := range storage.tables[tableName] {
 		records = append(records, fmt.Sprintf("%s\t%s", key, value))
 	}
 
