@@ -2,8 +2,6 @@ package core
 
 import (
 	"fmt"
-	"log"
-	"os"
 )
 
 type Record string
@@ -12,17 +10,11 @@ type Table map[string]Record
 
 type Storage struct {
 	tables map[string](Table)
-	logger *log.Logger
+	logger DBLogger
 }
 
 func InitStorage() (storage Storage) {
-	f, err := os.OpenFile("DRReS.log", os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0666)
-
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-
-	logger := log.New(f, "", log.LstdFlags)
+	logger := initLogger("DRReS.log")
 
 	storage = Storage{
 		map[string]Table{"default": {}},
@@ -46,7 +38,8 @@ func (s Storage) Insert(tableName string, key string, value Record) (err error) 
 	if ok == true {
 		return fmt.Errorf("key %v is already in the table", key)
 	} else {
-		s.logger.Printf("put\t%s\t%s\n", key, value)
+		logEntry := fmt.Sprintf("put\t%s\t%s\n", key, value)
+		s.logger.writeToDisk(logEntry)
 		table[key] = value
 		return
 	}
@@ -58,7 +51,8 @@ func (s Storage) Update(tableName string, key string, value Record) (err error) 
 	if ok == false {
 		return fmt.Errorf("key %v is not in the table", key)
 	} else {
-		s.logger.Printf("put\t%s\t%s\n", key, value)
+		logEntry := fmt.Sprintf("put\t%s\t%s\n", key, value)
+		s.logger.writeToDisk(logEntry)
 		table[key] = value
 		return
 	}
@@ -70,7 +64,8 @@ func (s Storage) Delete(tableName string, key string) (err error) {
 	if ok == false {
 		return fmt.Errorf("key %v is not in the table", key)
 	} else {
-		s.logger.Printf("delete\t%s\n", key)
+		logEntry := fmt.Sprintf("delete\t%s\n", key)
+		s.logger.writeToDisk(logEntry)
 		delete(table, key)
 		return nil
 	}
