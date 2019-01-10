@@ -30,7 +30,7 @@ func InitStorage() (storage Storage) {
 	return
 }
 
-func (s Storage) Get(tableName string, key string) (value Record, err error) {
+func (s Storage) Read(tableName string, key string) (value Record, err error) {
 	table := s.tables[tableName]
 	value, ok := table[key]
 	if ok == false {
@@ -40,11 +40,23 @@ func (s Storage) Get(tableName string, key string) (value Record, err error) {
 	}
 }
 
-func (s Storage) Put(tableName string, key string, value Record) (err error) {
+func (s Storage) Insert(tableName string, key string, value Record) (err error) {
 	table := s.tables[tableName]
 	_, ok := table[key]
 	if ok == true {
 		return fmt.Errorf("key %v is already in the table", key)
+	} else {
+		s.logger.Printf("put\t%s\t%s\n", key, value)
+		table[key] = value
+		return
+	}
+}
+
+func (s Storage) Update(tableName string, key string, value Record) (err error) {
+	table := s.tables[tableName]
+	_, ok := table[key]
+	if ok == false {
+		return fmt.Errorf("key %v is not in the table", key)
 	} else {
 		s.logger.Printf("put\t%s\t%s\n", key, value)
 		table[key] = value

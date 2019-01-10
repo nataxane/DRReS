@@ -11,12 +11,14 @@ func ProcessQuery(query string, storage Storage) (result []byte) {
 	switch op {
 	case "":
 		result = []byte("Empty query")
-	case "get":
-		result = processGetQuery(storage,"default", key)
-	case "put":
-		result = processPutQuery(storage, "default", key, value)
+	case "read":
+		result = processReadQuery(storage,"default", key)
+	case "insert":
+		result = processWriteQuery(storage, op, "default", key, value)
+	case "update":
+		result = processWriteQuery(storage, op, "default", key, value)
 	case "delete":
-		result = processDeleteQuery(storage, "default", key)
+		result = processWriteQuery(storage, op, "default", key, value)
 	case "show":
 		result = showTable(storage, "default")
 	default:
@@ -43,13 +45,13 @@ func parseQuery(query string) (op, key, value string) {
 	return
 }
 
-func processGetQuery(storage Storage, tableName, key string) (result []byte) {
+func processReadQuery(storage Storage, tableName, key string) (result []byte) {
 	if key == "" {
 		result = []byte("Empty key")
 		return
 	}
 
-	value, err := storage.Get(tableName, key)
+	value, err := storage.Read(tableName, key)
 	if err == nil {
 		result = []byte(value)
 	} else {
@@ -59,29 +61,23 @@ func processGetQuery(storage Storage, tableName, key string) (result []byte) {
 	return
 }
 
-func processPutQuery(storage Storage, tableName, key, value string) (result []byte) {
+func processWriteQuery(storage Storage, op, tableName, key, value string) (result []byte){
 	if key == "" {
 		result = []byte("Empty key")
 		return
 	}
 
-	err := storage.Put(tableName, key, Record(value))
-	if err == nil {
-		result = []byte("ok")
-	} else {
-		result = []byte(err.Error())
+	var err error
+
+	switch op {
+	case "insert":
+		err = storage.Insert(tableName, key, Record(value))
+	case "update":
+		err = storage.Update(tableName, key, Record(value))
+	case "delete":
+		err = storage.Delete(tableName, key)
 	}
 
-	return
-}
-
-func processDeleteQuery(storage Storage, tableName, key string) (result []byte) {
-	if key == "" {
-		result = []byte("Empty key")
-		return
-	}
-
-	err := storage.Delete(tableName, key)
 	if err == nil {
 		result = []byte("ok")
 	} else {

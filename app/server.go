@@ -12,8 +12,9 @@ var clientId = 0
 
 var welcome = []byte("Welcome to DRReS!\n\n" +
 	"Here what you can do here:\n" +
-	"\tget <key> – read a record\n" +
-	"\tput <key> <value> – insert a new record\n" +
+	"\tread <key> – read a record\n" +
+	"\tinsert <key> <value> – insert a new record\n" +
+	"\tupdate <key> <value> – update an existing record\n" +
 	"\tdelete <key> – delete a record\n" +
 	"\tshow – show current table snapshot\n\n" +
 	"Please have fun and don't forget to crash.\n")
