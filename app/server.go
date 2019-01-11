@@ -85,5 +85,7 @@ func SocketServer(port string) {
 func main() {
 	port := "8080"
 
+	log.SetFlags(log.Lmicroseconds)
+
 	SocketServer(port)
 }
