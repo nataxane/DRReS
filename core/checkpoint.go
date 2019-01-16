@@ -23,7 +23,7 @@ func (storage Storage) RunCheckpointing() *cron.Cron {
 }
 
 func makeCheckpoint(storage Storage) {
-	f, err := os.OpenFile("db_snapshot", os.O_WRONLY | os.O_CREATE, 0666)
+	f, err := os.OpenFile(snapshotFileName, os.O_WRONLY | os.O_CREATE, 0666)
 	if err != nil {
 		log.Printf("Can not make a checkpoint: %s", err)
 	}

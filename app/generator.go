@@ -59,7 +59,7 @@ func generateWorkload(conn net.Conn, queryNum *int) {
 		switch {
 		case randInt < 45:
 			op = "insert"
-			key = rand.Intn(1000000)
+			key = rand.Intn(*queryNum*10)
 			value = randomStringGenerator()
 			keys = append(keys, key)
 		case randInt < 55:

@@ -1,11 +1,15 @@
 package core
 
 import (
-	"bufio"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
+)
+
+const (
+	logFileName = "DRReS.log"
+	snapshotFileName = "db_snapshot"
+	lastCheckpointFileName = "last_checkpoint"
 )
 
 type Record string
@@ -19,7 +23,7 @@ type Storage struct {
 }
 
 func InitStorage() (storage Storage) {
-	dbLogger := initLogger("DRReS.log")
+	dbLogger := initLogger()
 	locker := &sync.Mutex{}
 
 	storage = Storage{
@@ -118,32 +122,4 @@ func (s Storage) Delete(tableName string, key string) (err error) {
 	}
 }
 
-func (s Storage) Recover() {
-	logScanner := bufio.NewScanner(s.logger.logFile)
-
-	for logScanner.Scan() {
-		logEntry := logScanner.Text()
-		query := &strings.SplitN(logEntry, " ", 3)[2]
-
-		op, key, value := parseQuery(*query)
-		tableName := "default"
-
-		table, tableOk := s.tables[tableName]
-
-		if tableOk == false {
-			table = Table{}
-			s.tables[tableName] = table
-		}
-
-		switch {
-		case op == "insert" || op =="update":
-			table[key] = Record(value)
-		case op == "delete":
-			delete(table, key)
-		default:
-			log.Fatalf("Recovery failed: invalid query in the log: %v", query)
-		}
-	}
-	log.Printf("Successfully recovered %d rows", len(s.tables["default"]))
-}
 
