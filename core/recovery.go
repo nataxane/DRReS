@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+func restoreCheckpoint(s Storage) {
+
+}
+
 func redoLog(s Storage) {
 	logScanner := bufio.NewScanner(s.logger.logFile)
 
@@ -35,6 +39,7 @@ func redoLog(s Storage) {
 }
 
 func (s Storage) Recover() {
+	restoreCheckpoint(s)
 	redoLog(s)
 
 	log.Printf("Successfully recovered %d rows", len(s.tables["default"]))
