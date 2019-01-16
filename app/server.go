@@ -43,7 +43,7 @@ OUTLOOP:
 			break OUTLOOP
 		case nil:
 			query := string(buf[:n])
-			log.Printf("Recieved query: %s", query)
+			log.Printf("Recieved query from %d: %s", clientId, query)
 
 			reply := core.ProcessQuery(query, storage)
 
@@ -57,7 +57,6 @@ OUTLOOP:
 
 func SocketServer(port string) {
 	listen, err := net.Listen("tcp", ":"+port)
-	defer listen.Close()
 
 	if err != nil {
 		log.Fatalf("Socket listen port %s failed, %s", port, err)
@@ -65,6 +64,13 @@ func SocketServer(port string) {
 
 	storage := core.InitStorage()
 	log.Printf("Begin listen to port: %s", port)
+
+	scheduler := storage.RunCheckpointing()
+
+	defer func() {
+		listen.Close()
+		scheduler.Stop()
+	}()
 
 	for {
 		conn, err := listen.Accept()
