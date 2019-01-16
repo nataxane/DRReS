@@ -125,5 +125,6 @@ func (s Storage) Recover() {
 			log.Fatalf("Recovery failed: invalid query in the log: %v", query)
 		}
 	}
+	log.Printf("Successfully recovered %d rows", len(s.tables["default"]))
 }
 

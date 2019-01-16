@@ -1,11 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
-	"time"
 )
 
 func connectServer() net.Conn {
@@ -38,7 +38,7 @@ func randomStringGenerator() string {
 	return string(b)
 }
 
-func generateWorkload(conn net.Conn) {
+func generateWorkload(conn net.Conn, queryNum *int) {
 	var (
 		randInt int
 		op, value string
@@ -49,7 +49,7 @@ func generateWorkload(conn net.Conn) {
 
 	defer conn.Close()
 
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < *queryNum; i++ {
 		if len(keys) == 0 {
 			randInt = rand.Intn(40)
 		} else {
@@ -84,17 +84,18 @@ func generateWorkload(conn net.Conn) {
 		default:
 			query = fmt.Sprintf("%s %d", op, key)
 		}
-		fmt.Println(query)
 		conn.Write([]byte(query))
 
 		buff := make([]byte, 1024)
-		n, _ := conn.Read(buff)
-		fmt.Printf("%s\n", buff[:n])
+		conn.Read(buff)
 	}
 }
 
 func main() {
 	conn := connectServer()
-	time.Sleep(20)
-	generateWorkload(conn)
+
+	size := flag.Int("size", 1000, "workload size")
+	flag.Parse()
+
+	generateWorkload(conn, size)
 }
