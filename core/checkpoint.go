@@ -7,17 +7,15 @@ import (
 	"os"
 )
 
-func (storage Storage) RunCheckpointing() *cron.Cron {
+func (s Storage) RunCheckpointing() *cron.Cron {
 	scheduler := cron.New()
 
-	err := scheduler.AddFunc("@every 5s", func() {makeCheckpoint(storage)})
+	err := scheduler.AddFunc("@every 5s", func() {makeCheckpoint(s)})
 	if err != nil {
 		log.Fatalf("Can not run checkpointing scheduler: %s", err)
 	}
 
 	scheduler.Start()
-
-
 
 	return scheduler
 }
@@ -28,18 +26,17 @@ func makeCheckpoint(storage Storage) {
 		log.Printf("Can not make a checkpoint: %s", err)
 	}
 
+	copyRecord := func(key, value interface{}) bool {
+		f.Write([]byte(fmt.Sprintf("%s\t%s\n", key, value)))
+		return true
+	}
+
 	storage.logger.writeToDisk("begin_checkpoint")
 
 	for _, table := range storage.tables {
-		storage.locker.Lock()
-		for key, value := range table {
-			fmt.Printf("%s\t%s\n", key, value)
-			f.Write([]byte(fmt.Sprintf("%s\t%s\n", key, value)))
-		}
-		storage.locker.Unlock()
+		table.Range(copyRecord)
+		f.Sync()
 	}
-
-	f.Sync()
 
 	storage.logger.writeToDisk("end_checkpoint")
 }

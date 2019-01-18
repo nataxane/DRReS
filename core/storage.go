@@ -14,22 +14,17 @@ const (
 
 type Record string
 
-type Table map[string]Record
-
 type Storage struct {
-	tables map[string](Table)
+	tables map[string]sync.Map
 	logger DBLogger
-	locker *sync.Mutex
 }
 
 func InitStorage() (storage Storage) {
 	dbLogger := initLogger()
-	locker := &sync.Mutex{}
 
 	storage = Storage{
-		map[string]Table{},
+		map[string]sync.Map{},
 		dbLogger,
-		locker,
 	}
 
 	log.Print("Recovery started")
@@ -38,86 +33,75 @@ func InitStorage() (storage Storage) {
 	return
 }
 
-func (s Storage) Read(tableName string, key string) (value Record, err error) {
+func (s Storage) Read(tableName string, key string) (string, error) {
 	table, tableOk := s.tables[tableName]
 
 	if tableOk == false {
 		return "", fmt.Errorf("table %v does not exist", tableName)
 	}
 
-	s.locker.Lock()
-	value, recordOk := table[key]
-	s.locker.Unlock()
+	value, recordOk := table.Load(key)
 	if recordOk == false {
 		return "", fmt.Errorf("key %v is not in the table", key)
 	} else {
-		return value, nil
+		return fmt.Sprint(value), nil
 	}
 }
 
-func (s Storage) Insert(tableName string, key string, value Record) (err error) {
+func (s Storage) Insert(tableName string, key string, value Record) error {
 	table, tableOk := s.tables[tableName]
 
 	if tableOk == false {
-		table = Table{}
+		table = sync.Map{}
 		s.tables[tableName] = table
 	}
 
-	s.locker.Lock()
-	_, recordOk := table[key]
-	s.locker.Unlock()
+	_, recordOk := table.Load(key)
+
 	if recordOk == true {
 		return fmt.Errorf("key %v is already in the table", key)
 	} else {
 		logEntry := fmt.Sprintf("insert %s %s\n", key, value)
 		s.logger.writeToDisk(logEntry)
-		s.locker.Lock()
-		table[key] = value
-		s.locker.Unlock()
-		return
+		table.Store(key, value)
+		return nil
 	}
 }
 
-func (s Storage) Update(tableName string, key string, value Record) (err error) {
+func (s Storage) Update(tableName string, key string, value Record) error {
 	table, tableOk := s.tables[tableName]
 
 	if tableOk == false {
 		return fmt.Errorf("table %v does not exist", tableName)
 	}
 
-	s.locker.Lock()
-	_, recordOk := table[key]
-	s.locker.Unlock()
+	_, recordOk := table.Load(key)
+
 	if recordOk == false {
 		return fmt.Errorf("key %v is not in the table", key)
 	} else {
 		logEntry := fmt.Sprintf("update %s %s\n", key, value)
 		s.logger.writeToDisk(logEntry)
-		s.locker.Lock()
-		table[key] = value
-		s.locker.Unlock()
-		return
+		table.Store(key, value)
+		return nil
 	}
 }
 
-func (s Storage) Delete(tableName string, key string) (err error) {
+func (s Storage) Delete(tableName string, key string) error {
 	table, tableOk := s.tables[tableName]
 
 	if tableOk == false {
 		return fmt.Errorf("table %v does not exist", tableName)
 	}
 
-	s.locker.Lock()
-	_, recordOk := table[key]
-	s.locker.Unlock()
+	_, recordOk := table.Load(key)
+
 	if recordOk == false {
 		return fmt.Errorf("key %v is not in the table", key)
 	} else {
 		logEntry := fmt.Sprintf("delete %s\n", key)
 		s.logger.writeToDisk(logEntry)
-		s.locker.Lock()
-		delete(table, key)
-		s.locker.Unlock()
+		table.Delete(key)
 		return nil
 	}
 }

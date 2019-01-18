@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"log"
 	"strings"
+	"sync"
 )
 
 func restoreCheckpoint(s Storage) {
@@ -23,15 +24,15 @@ func redoLog(s Storage) {
 		table, tableOk := s.tables[tableName]
 
 		if tableOk == false {
-			table = Table{}
+			table = sync.Map{}
 			s.tables[tableName] = table
 		}
 
 		switch {
 		case op == "insert" || op =="update":
-			table[key] = Record(value)
+			table.Store(key, Record(value))
 		case op == "delete":
-			delete(table, key)
+			table.Delete(key)
 		default:
 			log.Printf("Skip invalid query in the log: %v", query)
 		}
@@ -41,6 +42,4 @@ func redoLog(s Storage) {
 func (s Storage) Recover() {
 	restoreCheckpoint(s)
 	redoLog(s)
-
-	log.Printf("Successfully recovered %d rows", len(s.tables["default"]))
 }
