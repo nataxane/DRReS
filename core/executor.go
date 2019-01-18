@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -19,8 +18,6 @@ func ProcessQuery(query string, storage Storage) (result []byte) {
 		result = processWriteQuery(storage, op, "default", key, value)
 	case "delete":
 		result = processWriteQuery(storage, op, "default", key, value)
-	case "show":
-		result = showTable(storage, "default")
 	default:
 		result = []byte("Unknown operation")
 	}
@@ -87,13 +84,3 @@ func processWriteQuery(storage Storage, op, tableName, key, value string) (resul
 	return
 }
 
-func showTable(storage Storage, tableName string) (result []byte) {
-	var records []string
-
-	for key, value := range storage.tables[tableName] {
-		records = append(records, fmt.Sprintf("%s\t%s", key, value))
-	}
-
-	result = []byte(strings.Join(records, "\n"))
-	return
-}

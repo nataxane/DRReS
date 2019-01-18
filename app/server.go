@@ -15,8 +15,7 @@ var welcome = []byte("Welcome to DRReS!\n\n" +
 	"\tread <key> – read a record\n" +
 	"\tinsert <key> <value> – insert a new record\n" +
 	"\tupdate <key> <value> – update an existing record\n" +
-	"\tdelete <key> – delete a record\n" +
-	"\tshow – show current table snapshot\n\n" +
+	"\tdelete <key> – delete a record\n\n" +
 	"Please have fun and don't forget to crash.\n")
 
 func handler(conn net.Conn, storage core.Storage, clientId int) {
@@ -62,9 +61,9 @@ func SocketServer(port string) {
 		log.Fatalf("Socket listen port %s failed, %s", port, err)
 	}
 
-	storage := core.InitStorage()
 	log.Printf("Begin listen to port: %s", port)
 
+	storage := core.InitStorage()
 	scheduler := storage.RunCheckpointing()
 
 	defer func() {
