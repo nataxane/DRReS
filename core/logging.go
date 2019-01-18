@@ -23,12 +23,15 @@ func initLogger() (logger DBLogger) {
 	return
 }
 
-func (logger DBLogger) writeToDisk(logEntry string) {
+func (logger DBLogger) writeToDisk(logEntry string) int64  {
+	currentPos, _ := logger.logFile.Seek(0, 1)
 	logger.logger.Print(logEntry)
 	err := logger.logFile.Sync()
 
 	if err != nil {
 		log.Fatalf("error flushing log to disk: %v", err)
 	}
+
+	return currentPos
 }
 

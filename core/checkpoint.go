@@ -21,22 +21,30 @@ func (s Storage) RunCheckpointing() *cron.Cron {
 }
 
 func makeCheckpoint(storage Storage) {
-	f, err := os.OpenFile(snapshotFileName, os.O_WRONLY | os.O_CREATE, 0666)
-	if err != nil {
-		log.Printf("Can not make a checkpoint: %s", err)
+	snapshotFile, snapshotErr := os.OpenFile(snapshotFileName, os.O_WRONLY | os.O_CREATE, 0666)
+	logPosFile, logPosErr := os.OpenFile(lastCheckpointFileName, os.O_WRONLY | os.O_CREATE, 0666)
+
+	if snapshotErr != nil {
+		log.Printf("Can not make a checkpoint: %s", snapshotErr)
+	}
+	if snapshotErr != nil {
+		log.Printf("Can not make a checkpoint: %s", logPosErr)
 	}
 
 	copyRecord := func(key, value interface{}) bool {
-		f.Write([]byte(fmt.Sprintf("%s\t%s\n", key, value)))
+		snapshotFile.Write([]byte(fmt.Sprintf("%s\t%s\n", key, value)))
 		return true
 	}
 
-	storage.logger.writeToDisk("begin_checkpoint")
-	log.Println("Checkpoint: start")
+	logPos := storage.logger.writeToDisk("begin_checkpoint")
+	log.Printf("Checkpoint: start. Log position; %v\n", logPos)
 
 	storage.table.Range(copyRecord)
-	f.Sync()
+	snapshotFile.Sync()
 
 	storage.logger.writeToDisk("end_checkpoint")
+
+	logPosFile.Write([]byte(string(logPos)))
+
 	log.Println("Checkpoint: end")
 }

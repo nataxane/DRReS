@@ -9,7 +9,7 @@ import (
 const (
 	logFileName = "DRReS.log"
 	snapshotFileName = "db_snapshot"
-	lastCheckpointFileName = "last_checkpoint"
+	lastCheckpointFileName = "last_checkpoint"  // position of the last "begin_checkpoint" entry in the log file
 )
 
 type Record string
