@@ -11,13 +11,13 @@ func ProcessQuery(query string, storage Storage) (result []byte) {
 	case "":
 		result = []byte("Empty query")
 	case "read":
-		result = processReadQuery(storage,"default", key)
+		result = processReadQuery(storage, key)
 	case "insert":
-		result = processWriteQuery(storage, op, "default", key, value)
+		result = processWriteQuery(storage, op, key, value)
 	case "update":
-		result = processWriteQuery(storage, op, "default", key, value)
+		result = processWriteQuery(storage, op, key, value)
 	case "delete":
-		result = processWriteQuery(storage, op, "default", key, value)
+		result = processWriteQuery(storage, op, key, value)
 	default:
 		result = []byte("Unknown operation")
 	}
@@ -42,13 +42,13 @@ func parseQuery(query string) (op, key, value string) {
 	return
 }
 
-func processReadQuery(storage Storage, tableName, key string) (result []byte) {
+func processReadQuery(storage Storage, key string) (result []byte) {
 	if key == "" {
 		result = []byte("Empty key")
 		return
 	}
 
-	value, err := storage.Read(tableName, key)
+	value, err := storage.Read(key)
 	if err == nil {
 		result = []byte(value)
 	} else {
@@ -58,7 +58,7 @@ func processReadQuery(storage Storage, tableName, key string) (result []byte) {
 	return
 }
 
-func processWriteQuery(storage Storage, op, tableName, key, value string) (result []byte){
+func processWriteQuery(storage Storage, op, key, value string) (result []byte){
 	if key == "" {
 		result = []byte("Empty key")
 		return
@@ -68,11 +68,11 @@ func processWriteQuery(storage Storage, op, tableName, key, value string) (resul
 
 	switch op {
 	case "insert":
-		err = storage.Insert(tableName, key, Record(value))
+		err = storage.Insert(key, Record(value))
 	case "update":
-		err = storage.Update(tableName, key, Record(value))
+		err = storage.Update(key, Record(value))
 	case "delete":
-		err = storage.Delete(tableName, key)
+		err = storage.Delete(key)
 	}
 
 	if err == nil {

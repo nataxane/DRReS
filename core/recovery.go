@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"log"
 	"strings"
-	"sync"
 )
 
 func restoreCheckpoint(s Storage) {
@@ -19,20 +18,12 @@ func redoLog(s Storage) {
 		query := &strings.SplitN(logEntry, " ", 3)[2]
 
 		op, key, value := parseQuery(*query)
-		tableName := "default"
-
-		table, tableOk := s.tables[tableName]
-
-		if tableOk == false {
-			table = sync.Map{}
-			s.tables[tableName] = table
-		}
 
 		switch {
 		case op == "insert" || op =="update":
-			table.Store(key, Record(value))
+			s.table.Store(key, Record(value))
 		case op == "delete":
-			table.Delete(key)
+			s.table.Delete(key)
 		default:
 			log.Printf("Skip invalid query in the log: %v", query)
 		}

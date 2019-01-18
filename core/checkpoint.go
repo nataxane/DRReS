@@ -32,11 +32,11 @@ func makeCheckpoint(storage Storage) {
 	}
 
 	storage.logger.writeToDisk("begin_checkpoint")
+	log.Println("Checkpoint: start")
 
-	for _, table := range storage.tables {
-		table.Range(copyRecord)
-		f.Sync()
-	}
+	storage.table.Range(copyRecord)
+	f.Sync()
 
 	storage.logger.writeToDisk("end_checkpoint")
+	log.Println("Checkpoint: end")
 }
