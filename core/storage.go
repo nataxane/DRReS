@@ -8,7 +8,7 @@ import (
 
 const (
 	logFileName = "DRReS.log"
-	snapshotFileName = "db_snapshot"
+	snapshotDir = "snapshots"
 	lastCheckpointFileName = "last_checkpoint"  // position of the last "begin_checkpoint" entry in the log file
 )
 

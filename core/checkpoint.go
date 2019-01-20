@@ -1,16 +1,19 @@
 package core
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/robfig/cron"
 	"log"
 	"os"
+	"strconv"
+	"time"
 )
 
 func (s Storage) RunCheckpointing() *cron.Cron {
 	scheduler := cron.New()
 
-	err := scheduler.AddFunc("@every 5s", func() {makeCheckpoint(s)})
+	err := scheduler.AddFunc("@every 1m", func() {makeCheckpoint(s)})
 	if err != nil {
 		log.Fatalf("Can not run checkpointing scheduler: %s", err)
 	}
@@ -21,30 +24,53 @@ func (s Storage) RunCheckpointing() *cron.Cron {
 }
 
 func makeCheckpoint(storage Storage) {
-	snapshotFile, snapshotErr := os.OpenFile(snapshotFileName, os.O_WRONLY | os.O_CREATE, 0666)
-	logPosFile, logPosErr := os.OpenFile(lastCheckpointFileName, os.O_WRONLY | os.O_CREATE, 0666)
+	currentSnapshotFileName := fmt.Sprintf("%s/%s", snapshotDir, strconv.FormatInt(time.Now().Unix(), 10))
+	snapshotFile, err := os.OpenFile(currentSnapshotFileName, os.O_WRONLY | os.O_CREATE, 0666)
 
-	if snapshotErr != nil {
-		log.Printf("Can not make a checkpoint: %s", snapshotErr)
+	if err != nil {
+		log.Printf("Can not make a checkpoint: %s\n", err)
+		return
 	}
-	if snapshotErr != nil {
-		log.Printf("Can not make a checkpoint: %s", logPosErr)
-	}
+
+	writer := bufio.NewWriter(snapshotFile)
 
 	copyRecord := func(key, value interface{}) bool {
-		snapshotFile.Write([]byte(fmt.Sprintf("%s\t%s\n", key, value)))
+		_, err = writer.Write([]byte(fmt.Sprintf("%s\t%s\n", key, value)))
+
+		if err != nil {
+			log.Panicln(err)
+		}
+
 		return true
 	}
 
 	logPos := storage.logger.writeToDisk("begin_checkpoint")
-	log.Printf("Checkpoint: start. Log position; %v\n", logPos)
+	log.Println("Checkpoint: start")
 
 	storage.table.Range(copyRecord)
-	snapshotFile.Sync()
+
+	err = snapshotFile.Sync()
+	if err != nil {
+		log.Printf("Can not make a checkpoint: %s\n", err)
+		return
+	}
+
+	err = snapshotFile.Close()
+	if err != nil {
+		log.Printf("Can not make a checkpoint: %s\n", err)
+		return
+	}
 
 	storage.logger.writeToDisk("end_checkpoint")
 
-	logPosFile.Write([]byte(string(logPos)))
+	saveCheckpoint(logPos, currentSnapshotFileName)
 
 	log.Println("Checkpoint: end")
+}
+
+func saveCheckpoint(logPos int64, fileName string) {
+	logPosFile, _ := os.OpenFile(lastCheckpointFileName, os.O_WRONLY | os.O_APPEND | os.O_CREATE, 0666)
+	rec := fmt.Sprintf("%s\t%s\n", fileName, strconv.FormatInt(logPos, 10))
+	logPosFile.Write([]byte(rec))
+	logPosFile.Close()
 }
