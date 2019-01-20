@@ -2,35 +2,99 @@ package core
 
 import (
 	"bufio"
+	"io/ioutil"
 	"log"
+	"os"
+	"strconv"
 	"strings"
 )
 
-func restoreCheckpoint(s Storage) {
+func restoreCheckpoint(s Storage) int64 {
+	allCheckpoints, err := ioutil.ReadFile(lastCheckpointFileName)
 
+	if err != nil {
+		log.Printf("Can not load snapshot: %v", err)
+		return 0
+	}
+
+	lines := strings.Split(string(allCheckpoints), "\n")
+	lastCheckpoint := lines[len(lines) - 2]
+
+	checkpointData := strings.Split(lastCheckpoint, "\t")
+	snapshotPath := checkpointData[0]
+	logPos, err := strconv.ParseInt(checkpointData[1], 10, 64)
+
+	if err != nil {
+		log.Printf("Can not load snapshot: %v", err)
+		return 0
+	}
+
+	snapshotFile, err := os.OpenFile(snapshotPath, os.O_RDONLY, 0666)
+
+	if err != nil {
+		log.Printf("Can not load snapshot: %v", err)
+		return 0
+	} else {
+		log.Printf("Start loading snapshot: %s", snapshotPath)
+	}
+
+	/*
+	We can write fix sized records to the snapshot file
+	Then we can profit from buffered read on recovery
+	ToDo: implement
+	 */
+
+	snapshotScanner := bufio.NewScanner(snapshotFile)
+
+	for snapshotScanner.Scan() {
+		record := snapshotScanner.Text()
+		kv := strings.Split(record, "\t")
+		s.table.Store(kv[0], kv[1])
+	}
+
+	log.Printf("Snapshot successfully loaded")
+	return logPos
 }
 
-func redoLog(s Storage) {
+/*
+Right now it's not obvious why do we need timestamps
+	insert/update already updated value – we will reupdate it later anyway
+	delete already deleted value – sync.Map doesn't care
+ */
+
+
+func redoLog(startPos int64, s Storage) {
+	s.logger.logFile.Seek(startPos, 0)  // go to the last begin_checkpoint entry in log
+
 	logScanner := bufio.NewScanner(s.logger.logFile)
 
 	for logScanner.Scan() {
 		logEntry := logScanner.Text()
-		query := &strings.SplitN(logEntry, " ", 3)[2]
+		query := strings.SplitN(logEntry, " ", 3)[2]
 
-		op, key, value := parseQuery(*query)
+		op, key, value := parseQuery(query)
 
 		switch {
-		case op == "insert" || op =="update":
+		case op == "insert" || op == "update":
 			s.table.Store(key, Record(value))
 		case op == "delete":
 			s.table.Delete(key)
+		case op == "begin_checkpoint" || op == "end_checkpoint":
+			continue
 		default:
 			log.Printf("Skip invalid query in the log: %v", query)
 		}
 	}
 }
 
+/*
+Global ToDo:
+	1. Validate recovery (do we really recovered to the last state of the DB?)
+	2. Make sure that we recover faster with checkpoints
+	3. Measure throughput with checkpoints
+ */
+
 func (s Storage) Recover() {
-	restoreCheckpoint(s)
-	redoLog(s)
+	logStartPos := restoreCheckpoint(s)
+	redoLog(logStartPos, s)
 }
