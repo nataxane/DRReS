@@ -13,7 +13,7 @@ import (
 func (s Storage) RunCheckpointing() *cron.Cron {
 	scheduler := cron.New()
 
-	err := scheduler.AddFunc("@every 1m", func() {makeCheckpoint(s)})
+	err := scheduler.AddFunc("@every 10s", func() {makeCheckpoint(s)})
 	if err != nil {
 		log.Fatalf("Can not run checkpointing scheduler: %s", err)
 	}
@@ -33,13 +33,20 @@ func makeCheckpoint(storage Storage) {
 	}
 
 	writer := bufio.NewWriter(snapshotFile)
+	recCount := 0
 
 	copyRecord := func(key, value interface{}) bool {
-		_, err = writer.Write([]byte(fmt.Sprintf("%s\t%s\n", key, value)))
+		record := []byte(fmt.Sprintf("%s\t%s", key, value))
+		recordBlock := make([]byte, recordSize)
+		copy(recordBlock, record)
+
+		_, err = writer.Write(recordBlock)
 
 		if err != nil {
 			log.Panicln(err)
 		}
+
+		recCount += 1
 
 		return true
 	}
@@ -49,7 +56,7 @@ func makeCheckpoint(storage Storage) {
 
 	storage.table.Range(copyRecord)
 
-	err = snapshotFile.Sync()
+	err = writer.Flush()
 	if err != nil {
 		log.Printf("Can not make a checkpoint: %s\n", err)
 		return
@@ -65,6 +72,7 @@ func makeCheckpoint(storage Storage) {
 
 	saveCheckpoint(logPos, currentSnapshotFileName)
 
+	log.Printf("%d records", recCount)
 	log.Println("Checkpoint: end")
 }
 

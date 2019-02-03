@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"log"
 	"sync"
 )
 
@@ -10,6 +9,7 @@ const (
 	logFileName = "DRReS.log"
 	snapshotDir = "snapshots"
 	lastCheckpointFileName = "last_checkpoint"  // position of the last "begin_checkpoint" entry in the log file
+	recordSize = 128
 )
 
 type Record string
@@ -28,9 +28,7 @@ func InitStorage() (storage Storage) {
 		dbLogger,
 	}
 
-	log.Print("Recovery started")
 	storage.Recover()
-	log.Print("Recovery finished")
 	return
 }
 

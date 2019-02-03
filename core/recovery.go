@@ -2,19 +2,22 @@ package core
 
 import (
 	"bufio"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
-func restoreCheckpoint(s Storage) int64 {
+
+func getLastCheckpoint() (string, int64){
 	allCheckpoints, err := ioutil.ReadFile(lastCheckpointFileName)
 
 	if err != nil {
 		log.Printf("Can not load snapshot: %v", err)
-		return 0
+		return "", 0
 	}
 
 	lines := strings.Split(string(allCheckpoints), "\n")
@@ -26,6 +29,16 @@ func restoreCheckpoint(s Storage) int64 {
 
 	if err != nil {
 		log.Printf("Can not load snapshot: %v", err)
+		return "", 0
+	}
+	return snapshotPath, logPos
+}
+
+
+func restoreCheckpoint(s Storage) int64 {
+	snapshotPath, logPos := getLastCheckpoint()
+
+	if logPos == 0 {
 		return 0
 	}
 
@@ -38,21 +51,29 @@ func restoreCheckpoint(s Storage) int64 {
 		log.Printf("Start loading snapshot: %s", snapshotPath)
 	}
 
-	/*
-	We can write fix sized records to the snapshot file
-	Then we can profit from buffered read on recovery
-	ToDo: implement
-	 */
+	buf := make([]byte, recordSize)
+	reader := bufio.NewReader(snapshotFile)
+	recCount := 0
 
-	snapshotScanner := bufio.NewScanner(snapshotFile)
+OUTLOOP:
+	for {
+		_, err := reader.Read(buf)
 
-	for snapshotScanner.Scan() {
-		record := snapshotScanner.Text()
-		kv := strings.Split(record, "\t")
-		s.table.Store(kv[0], kv[1])
+		switch err {
+		case io.EOF:
+			break OUTLOOP
+		case nil:
+			record := string(buf)
+			kv := strings.Split(record, "\t")
+			s.table.Store(kv[0], kv[1])
+			recCount += 1
+		default:
+			log.Printf("Can not load snapshot: %v", err)
+			return 0
+		}
 	}
 
-	log.Printf("Snapshot successfully loaded")
+	log.Printf("Snapshot successfully loaded: %d records", recCount)
 	return logPos
 }
 
@@ -89,12 +110,20 @@ func redoLog(startPos int64, s Storage) {
 
 /*
 Global ToDo:
-	1. Validate recovery (do we really recovered to the last state of the DB?)
-	2. Make sure that we recover faster with checkpoints
-	3. Measure throughput with checkpoints
+	1. Validate recovery (do we really recovered to the last state of the DB?) +
+	2. Make sure that we recover faster with checkpoints +
+	3. Measure throughput with checkpoints 
  */
 
 func (s Storage) Recover() {
+	log.Print("Recovery started")
+
+	start := time.Now().UnixNano()
+
 	logStartPos := restoreCheckpoint(s)
 	redoLog(logStartPos, s)
+
+	end := time.Now().UnixNano()
+
+	log.Printf("Recovery finished: %.2f ms", float64(end - start)/ 1000 / 1000)
 }
