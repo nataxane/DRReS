@@ -64,11 +64,14 @@ func SocketServer(port string) {
 	log.Printf("Begin listen to port: %s", port)
 
 	storage := core.InitStorage()
-	scheduler := storage.RunCheckpointing()
+	checkpointScheduler := storage.RunCheckpointing()
+	statsScheduler, metric:= core.RunStats(storage)
 
 	defer func() {
 		listen.Close()
-		scheduler.Stop()
+		checkpointScheduler.Stop()
+		statsScheduler.Stop()
+		metric.ShowPlot()
 	}()
 
 	for {
