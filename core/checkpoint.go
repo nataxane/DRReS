@@ -13,7 +13,9 @@ import (
 func (s Storage) RunCheckpointing() *cron.Cron {
 	scheduler := cron.New()
 
-	err := scheduler.AddFunc("@every 10s", func() {makeCheckpoint(s)})
+	err := scheduler.AddFunc(
+		fmt.Sprintf("@every %ds", cpFreq),
+		func() {makeCheckpoint(s)})
 	if err != nil {
 		log.Fatalf("Can not run checkpointing scheduler: %s", err)
 	}

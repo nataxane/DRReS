@@ -5,13 +5,6 @@ import (
 	"sync"
 )
 
-const (
-	logFileName = "DRReS.log"
-	snapshotDir = "snapshots"
-	lastCheckpointFileName = "last_checkpoint"  // position of the last "begin_checkpoint" entry in the log file
-	recordSize = 128
-)
-
 type Record string
 
 type Storage struct {
