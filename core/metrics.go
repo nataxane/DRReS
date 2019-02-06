@@ -16,7 +16,7 @@ type Metric struct {
 	prevTotalWrite int
 }
 
-func RunStats(s Storage) (*cron.Cron, Metric) {
+func RunStats(s Storage) (*cron.Cron, *Metric) {
 	scheduler := cron.New()
 
 	metric := Metric{}
@@ -31,8 +31,6 @@ func RunStats(s Storage) (*cron.Cron, Metric) {
 		metric.writeQps = append(metric.writeQps, float64(currentTotalWrite - metric.prevTotalWrite)/throughputWindowSize)
 		metric.prevTotalRead = currentTotalRead
 		metric.prevTotalWrite = currentTotalWrite
-
-		metric.ShowPlot()
 	}
 
 	err := scheduler.AddFunc(
@@ -44,7 +42,7 @@ func RunStats(s Storage) (*cron.Cron, Metric) {
 
 	scheduler.Start()
 
-	return scheduler, metric
+	return scheduler, &metric
 }
 
 
