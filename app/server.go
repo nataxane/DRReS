@@ -26,44 +26,39 @@ var welcome = []byte("Welcome to DRReS!\n\n" +
 type clientPool struct {
 	currentId int
 	wg sync.WaitGroup
-	active map[int]bool
+	active int
 }
 
 func (pool *clientPool) connect() int {
 	clientId := pool.currentId
+	pool.currentId += 1
 
 	pool.wg.Add(1)
-	pool.active[clientId] = true
+	pool.active += 1
 
 	log.Printf("Connected client %d", clientId)
-
-	pool.currentId += 1
 
 	return clientId
 }
 
 func (pool *clientPool) disconnect(clientId int) {
 	pool.wg.Done()
-	delete(pool.active, clientId)
+	pool.active -= 1
 
 	log.Printf("Client %d disconnected", clientId)
 }
 
 func handler(conn net.Conn, storage core.Storage, clients *clientPool, clientId int, stopChan chan struct{}) {
 	defer func() {
-		conn.Close()
 		clients.disconnect(clientId)
+		conn.Close()
 	}()
-
-	conn.SetReadDeadline(time.Now().Add(1e9))
 
 	var (
 		buf = make([]byte, 1024)
 		reader = bufio.NewReader(conn)
 		writer = bufio.NewWriter(conn)
 	)
-
-	conn.Write(welcome)
 
 	writer.Write(welcome)
 	writer.Flush()
@@ -73,6 +68,7 @@ func handler(conn net.Conn, storage core.Storage, clients *clientPool, clientId 
 		case <- stopChan:
 			return
 		default:
+			conn.SetReadDeadline(time.Now().Add(1e9))
 			n, err := reader.Read(buf)
 
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
@@ -127,16 +123,13 @@ func SocketServer() {
 
 	stopHandlerChan := make(chan struct{})
 
-	clients := clientPool{
-		wg: sync.WaitGroup{},
-		active: make(map[int]bool),
-	}
+	clients := clientPool{wg: sync.WaitGroup{}}
 
 	for {
 		select {
 		case <-quitChan:
 			log.Println("Shutting down...")
-			if len(clients.active) > 0 {
+			if clients.active > 0 {
 				close(stopHandlerChan)
 				clients.wg.Wait()
 			}
