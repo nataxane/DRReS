@@ -22,36 +22,13 @@ var welcome = []byte("Welcome to DRReS!\n\n" +
 	"\tdelete <key> – delete a record\n\n" +
 	"Please have fun and don't forget to crash.\n")
 
+var clientId = 0
 
-type clientPool struct {
-	currentId int
-	wg sync.WaitGroup
-	active int
-}
-
-func (pool *clientPool) connect() int {
-	clientId := pool.currentId
-	pool.currentId += 1
-
-	pool.wg.Add(1)
-	pool.active += 1
-
-	log.Printf("Connected client %d", clientId)
-
-	return clientId
-}
-
-func (pool *clientPool) disconnect(clientId int) {
-	pool.wg.Done()
-	pool.active -= 1
-
-	log.Printf("Client %d disconnected", clientId)
-}
-
-func handler(conn net.Conn, storage core.Storage, clients *clientPool, clientId int, stopChan chan struct{}) {
+func handler(conn net.Conn, storage core.Storage, stopChan chan struct{}, clientPool *sync.WaitGroup) {
 	defer func() {
-		clients.disconnect(clientId)
 		conn.Close()
+		clientPool.Done()
+		log.Printf("Client %d disconnected", clientId)
 	}()
 
 	var (
@@ -123,16 +100,14 @@ func SocketServer() {
 
 	stopHandlerChan := make(chan struct{})
 
-	clients := clientPool{wg: sync.WaitGroup{}}
+	clientPool := sync.WaitGroup{}
 
 	for {
 		select {
 		case <-quitChan:
 			log.Println("Shutting down...")
-			if clients.active > 0 {
-				close(stopHandlerChan)
-				clients.wg.Wait()
-			}
+			close(stopHandlerChan)
+			clientPool.Wait()
 			return
 		default:
 			listener.SetDeadline(time.Now().Add(1e9))
@@ -148,8 +123,10 @@ func SocketServer() {
 				continue
 			}
 
-			clientId := clients.connect()
-			go handler(conn, storage, &clients, clientId, stopHandlerChan)
+			log.Printf("Connected client %d", clientId)
+
+			clientPool.Add(1)
+			go handler(conn, storage, stopHandlerChan, &clientPool)
 		}
 	}
 }
