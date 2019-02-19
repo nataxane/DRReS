@@ -28,16 +28,16 @@ type Metric struct {
 	prevTotalWrite int
 }
 
-func RunStats(s Storage) (*cron.Cron, *Metric) {
+func RunMetric(s Storage) (*cron.Cron, *Metric) {
 	scheduler := cron.New()
 
 	metric := Metric{}
 
-	updateStats := func() {
+	updateMetric := func() {
 		metric.ts = append(metric.ts, int(time.Now().Unix()))
 
-		currentTotalRead := s.stats.readOp
-		currentTotalWrite := s.stats.writeOp
+		currentTotalRead := s.rwStats.readOp
+		currentTotalWrite := s.rwStats.writeOp
 
 		metric.readQps = append(metric.readQps, float64(currentTotalRead - metric.prevTotalRead)/throughputWindowSize)
 		metric.writeQps = append(metric.writeQps, float64(currentTotalWrite - metric.prevTotalWrite)/throughputWindowSize)
@@ -47,7 +47,7 @@ func RunStats(s Storage) (*cron.Cron, *Metric) {
 
 	err := scheduler.AddFunc(
 		fmt.Sprintf("@every %ds", throughputWindowSize),
-		updateStats)
+		updateMetric)
 	if err != nil {
 		log.Fatalf("Can not run stats: %s", err)
 	}

@@ -10,22 +10,20 @@ import (
 	"time"
 )
 
-func (s Storage) RunCheckpointing() *cron.Cron {
-	scheduler := cron.New()
+func (s *Storage) RunCheckpointing() {
+	s.checkpointScheduler = cron.New()
 
-	err := scheduler.AddFunc(
+	err := s.checkpointScheduler.AddFunc(
 		fmt.Sprintf("@every %ds", cpFreq),
 		func() {makeCheckpoint(s)})
 	if err != nil {
 		log.Fatalf("Can not run checkpointing scheduler: %s", err)
 	}
 
-	scheduler.Start()
-
-	return scheduler
+	s.checkpointScheduler.Start()
 }
 
-func makeCheckpoint(storage Storage) {
+func makeCheckpoint(storage *Storage) {
 	currentSnapshotFileName := fmt.Sprintf("%s/%s", snapshotDir, strconv.FormatInt(time.Now().Unix(), 10))
 	snapshotFile, err := os.OpenFile(currentSnapshotFileName, os.O_WRONLY | os.O_CREATE, 0666)
 

@@ -2,13 +2,14 @@ package core
 
 import (
 	"fmt"
+	"github.com/robfig/cron"
 	"sync"
 )
 
 type Record string
 
 
-type Stats struct {
+type RWStats struct {
 	readOp int
 	writeOp int
 }
@@ -16,25 +17,32 @@ type Stats struct {
 type Storage struct {
 	table *sync.Map
 	logger DBLogger
-	stats *Stats
+	checkpointScheduler *cron.Cron
+	rwStats *RWStats
 }
 
 func InitStorage() (storage Storage) {
 	dbLogger := initLogger()
-	table := &sync.Map{}
 
 	storage = Storage{
-		table,
-		dbLogger,
-		&Stats{},
+		table: &sync.Map{},
+		logger: dbLogger,
+		rwStats:  &RWStats{},
 	}
 
 	storage.Recover()
+
+	storage.RunCheckpointing()
+
 	return
 }
 
+func (s *Storage) Stop() {
+	s.checkpointScheduler.Stop()
+}
+
 func (s *Storage) Read(key string) (string, error) {
-	s.stats.readOp += 1
+	s.rwStats.readOp += 1
 
 	value, recordOk := s.table.Load(key)
 	if recordOk == false {
@@ -45,7 +53,7 @@ func (s *Storage) Read(key string) (string, error) {
 }
 
 func (s *Storage) Insert(key string, value Record) error {
-	s.stats.writeOp += 1
+	s.rwStats.writeOp += 1
 
 	_, recordOk := s.table.Load(key)
 
@@ -60,7 +68,7 @@ func (s *Storage) Insert(key string, value Record) error {
 }
 
 func (s *Storage) Update(key string, value Record) error {
-	s.stats.writeOp += 1
+	s.rwStats.writeOp += 1
 
 	_, recordOk := s.table.Load(key)
 
@@ -75,7 +83,7 @@ func (s *Storage) Update(key string, value Record) error {
 }
 
 func (s *Storage) Delete(key string) error {
-	s.stats.writeOp += 1
+	s.rwStats.writeOp += 1
 
 	_, recordOk := s.table.Load(key)
 
@@ -88,4 +96,3 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 }
-

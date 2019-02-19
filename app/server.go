@@ -83,14 +83,13 @@ func SocketServer() {
 	log.Println("Begin listen to port: 8080")
 
 	storage := core.InitStorage()
-	checkpointScheduler := storage.RunCheckpointing()
-	statsScheduler, metric := core.RunStats(storage)
+	statsScheduler, metric := core.RunMetric(storage)
 
 	defer func() {
 		listener.Close()
 
-		checkpointScheduler.Stop()
 		statsScheduler.Stop()
+		storage.Stop()
 
 		metric.SavePlot()
 	}()
