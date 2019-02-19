@@ -92,7 +92,7 @@ func SocketServer() {
 		checkpointScheduler.Stop()
 		statsScheduler.Stop()
 
-		metric.ShowPlot()
+		metric.SavePlot()
 	}()
 
 	quitChan := make(chan os.Signal, 1)
@@ -124,6 +124,7 @@ func SocketServer() {
 			}
 
 			log.Printf("Connected client %d", clientId)
+			clientId += 1
 
 			clientPool.Add(1)
 			go handler(conn, storage, stopHandlerChan, &clientPool)
