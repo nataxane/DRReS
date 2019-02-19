@@ -24,7 +24,7 @@ var welcome = []byte("Welcome to DRReS!\n\n" +
 
 var clientId = 0
 
-func handler(conn net.Conn, storage core.Storage, stopChan chan struct{}, clientPool *sync.WaitGroup) {
+func handler(clientId int, conn net.Conn, storage core.Storage, stopChan chan struct{}, clientPool *sync.WaitGroup) {
 	defer func() {
 		conn.Close()
 		clientPool.Done()
@@ -123,10 +123,10 @@ func SocketServer() {
 			}
 
 			log.Printf("Connected client %d", clientId)
-			clientId += 1
 
 			clientPool.Add(1)
-			go handler(conn, storage, stopHandlerChan, &clientPool)
+			go handler(clientId, conn, storage, stopHandlerChan, &clientPool)
+			clientId += 1
 		}
 	}
 }
