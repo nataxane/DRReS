@@ -123,6 +123,8 @@ func (s Storage) Recover() {
 	logStartPos := restoreCheckpoint(s)
 	redoLog(logStartPos, s)
 
+	//s.DumpToDisk(recoveredFileName)
+
 	end := time.Now().UnixNano()
 
 	log.Printf("Recovery finished: %.2f ms", float64(end - start)/ 1000 / 1000)
