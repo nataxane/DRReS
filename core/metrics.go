@@ -14,9 +14,8 @@ import (
 )
 
 const (
-	imageSize = 14
-	xAxisTicksCount = 15
-	yAxisTicksCount = 20
+	imageSizeVert = 25
+	yAxisTicksCount = 35
 )
 
 type Metric struct {
@@ -65,7 +64,13 @@ func (m Metric) SavePlot() {
 		return
 	}
 
+	if len(m.ts) == 0 {
+		return
+	}
+
 	p.Title.Text = "DRReS throughput"
+	p.Add(plotter.NewGrid())
+
 	setXAxis(p, m.ts)
 	setYAxis(p, m.readQps, m.writeQps)
 
@@ -78,20 +83,16 @@ func (m Metric) SavePlot() {
 		return
 	}
 
-	p.Save(imageSize*vg.Inch, imageSize*vg.Inch, "throughput.png");
+	p.Save(vg.Length(len(m.ts))*vg.Inch, imageSizeVert*vg.Inch, "throughput.png");
 }
 
 func setXAxis(p *plot.Plot, xs []int) {
 	p.X.Label.Text = "ts"
 
-	xTicks := make([]plot.Tick, xAxisTicksCount)
-
-	xRange := xs[len(xs) - 1] - xs[0]
-	delta := xRange / (xAxisTicksCount - 1)
+	xTicks := make([]plot.Tick, len(xs))
 
 	for i := range xTicks {
-		tick := xs[0] + delta * i
-		xTicks[i] = plot.Tick{float64(tick), strconv.Itoa(tick)}
+		xTicks[i] = plot.Tick{float64(xs[i]), strconv.Itoa(xs[i])}
 	}
 	p.X.Tick.Marker = plot.ConstantTicks(xTicks)
 }
