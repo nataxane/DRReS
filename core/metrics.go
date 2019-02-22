@@ -7,6 +7,7 @@ import (
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
+	"image/color"
 	"log"
 	"sort"
 	"strconv"
@@ -18,30 +19,20 @@ const (
 	yAxisTicksCount = 35
 )
 
-type Metric struct {
-	ts []int
-	readQps []float64
-	writeQps []float64
-
-	prevTotalRead int
-	prevTotalWrite int
-}
-
-func RunMetric(s Storage) (*cron.Cron, *Metric) {
+func RunMetrics(s Storage) *cron.Cron {
 	scheduler := cron.New()
-
-	metric := Metric{}
+	throughput := &s.Stats.Throughput
 
 	updateMetric := func() {
-		metric.ts = append(metric.ts, int(time.Now().Unix()))
+		throughput.ts = append(throughput.ts, int(time.Now().Unix()))
 
-		currentTotalRead := s.rwStats.readOp
-		currentTotalWrite := s.rwStats.writeOp
+		currentTotalRead := s.Stats.rwStats.readOp
+		currentTotalWrite := s.Stats.rwStats.writeOp
 
-		metric.readQps = append(metric.readQps, float64(currentTotalRead - metric.prevTotalRead)/throughputWindowSize)
-		metric.writeQps = append(metric.writeQps, float64(currentTotalWrite - metric.prevTotalWrite)/throughputWindowSize)
-		metric.prevTotalRead = currentTotalRead
-		metric.prevTotalWrite = currentTotalWrite
+		throughput.readQps = append(throughput.readQps, float64(currentTotalRead - throughput.prevTotalRead)/throughputWindowSize)
+		throughput.writeQps = append(throughput.writeQps, float64(currentTotalWrite - throughput.prevTotalWrite)/throughputWindowSize)
+		throughput.prevTotalRead = currentTotalRead
+		throughput.prevTotalWrite = currentTotalWrite
 	}
 
 	err := scheduler.AddFunc(
@@ -53,10 +44,10 @@ func RunMetric(s Storage) (*cron.Cron, *Metric) {
 
 	scheduler.Start()
 
-	return scheduler, &metric
+	return scheduler
 }
 
-func (m Metric) SavePlot() {
+func SaveMetrics(s Storage) {
 	p, err := plot.New()
 
 	if err != nil {
@@ -64,26 +55,31 @@ func (m Metric) SavePlot() {
 		return
 	}
 
-	if len(m.ts) == 0 {
+	throughput := &s.Stats.Throughput
+
+	if len(throughput.ts) <= 1 {
 		return
 	}
 
 	p.Title.Text = "DRReS throughput"
 	p.Add(plotter.NewGrid())
 
-	setXAxis(p, m.ts)
-	setYAxis(p, m.readQps, m.writeQps)
+	setXAxis(p, throughput.ts)
+	setYAxis(p, throughput.readQps, throughput.writeQps)
 
 	err = plotutil.AddLinePoints(p,
-		"Read", buildPoints(m.ts, m.readQps),
-		"Write", buildPoints(m.ts, m.writeQps))
+		"Read", buildPoints(throughput.ts, throughput.readQps),
+		"Write", buildPoints(throughput.ts, throughput.writeQps))
 
 	if err != nil {
 		log.Printf("Can not show throughput metric: %s", err)
 		return
 	}
 
-	p.Save(vg.Length(len(m.ts))*vg.Inch, imageSizeVert*vg.Inch, "throughput.png");
+	maxYValue := getMaxYValue(throughput.readQps, throughput.writeQps)
+	addCheckpointBars(p, s.Stats.CheckpointTs, maxYValue)
+
+	p.Save(vg.Length(len(throughput.ts) - 1)*vg.Inch, imageSizeVert*vg.Inch, "throughput.png"); // horizontal size == number of 5 sec intervals
 }
 
 func setXAxis(p *plot.Plot, xs []int) {
@@ -124,4 +120,31 @@ func buildPoints(x []int, y []float64) plotter.XYs {
 	}
 
 	return pts
+}
+
+func addCheckpointBars(p *plot.Plot, checkpointTs [][2]float64, yValue float64) {
+	checkpointStartTs := make([]float64, len(checkpointTs))
+	checkpointDuration := make([]float64, len(checkpointTs))
+
+	for i := range checkpointTs {
+		checkpointStartTs[i] = checkpointTs[i][0]
+		checkpointDuration[i] = checkpointTs[i][1] - checkpointTs[i][0]
+	}
+
+	for i := range checkpointStartTs {
+		barWidth := vg.Length(checkpointDuration[i]/5.0)*vg.Inch
+
+		bar, _ := plotter.NewBarChart(plotter.Values{yValue}, barWidth)
+		bar.XMin = float64(checkpointStartTs[i])
+		bar.LineStyle.Width = vg.Length(0)
+		bar.Color = plotutil.Color(2)
+
+		p.Add(bar)
+	}
+}
+
+func getMaxYValue(ys1 []float64, ys2 []float64) float64 {
+	allY := append(ys1, ys2...)
+	sort.Float64s(allY)
+	return allY[len(allY) - 1]
 }

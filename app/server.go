@@ -83,7 +83,7 @@ func SocketServer() {
 	log.Println("Begin listen to port: 8080")
 
 	storage := core.InitStorage()
-	statsScheduler, metric := core.RunMetric(storage)
+	statsScheduler := core.RunMetrics(storage)
 
 	defer func() {
 		listener.Close()
@@ -91,7 +91,7 @@ func SocketServer() {
 		statsScheduler.Stop()
 		storage.Stop()
 
-		metric.SavePlot()
+		core.SaveMetrics(storage)
 	}()
 
 	quitChan := make(chan os.Signal, 1)

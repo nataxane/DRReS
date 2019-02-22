@@ -11,16 +11,31 @@ import (
 type Record string
 
 
+type Stats struct {
+	rwStats RWStats
+	Throughput ThroughputStats
+	CheckpointTs [][2]float64
+}
+
 type RWStats struct {
 	readOp int
 	writeOp int
+}
+
+type ThroughputStats struct {
+	ts []int
+	readQps []float64
+	writeQps []float64
+
+	prevTotalRead int
+	prevTotalWrite int
 }
 
 type Storage struct {
 	table *sync.Map
 	logger DBLogger
 	checkpointScheduler *cron.Cron
-	rwStats *RWStats
+	Stats *Stats
 }
 
 func InitStorage() (storage Storage) {
@@ -29,7 +44,7 @@ func InitStorage() (storage Storage) {
 	storage = Storage{
 		table: &sync.Map{},
 		logger: dbLogger,
-		rwStats:  &RWStats{},
+		Stats:  &Stats{},
 	}
 
 	storage.Recover()
@@ -45,7 +60,7 @@ func (s *Storage) Stop() {
 }
 
 func (s *Storage) Read(key string) (string, error) {
-	s.rwStats.readOp += 1
+	s.Stats.rwStats.readOp += 1
 
 	value, recordOk := s.table.Load(key)
 	if recordOk == false {
@@ -56,7 +71,7 @@ func (s *Storage) Read(key string) (string, error) {
 }
 
 func (s *Storage) Insert(key string, value Record) error {
-	s.rwStats.writeOp += 1
+	s.Stats.rwStats.writeOp += 1
 
 	_, recordOk := s.table.Load(key)
 
@@ -71,7 +86,7 @@ func (s *Storage) Insert(key string, value Record) error {
 }
 
 func (s *Storage) Update(key string, value Record) error {
-	s.rwStats.writeOp += 1
+	s.Stats.rwStats.writeOp += 1
 
 	_, recordOk := s.table.Load(key)
 
@@ -86,7 +101,7 @@ func (s *Storage) Update(key string, value Record) error {
 }
 
 func (s *Storage) Delete(key string) error {
-	s.rwStats.writeOp += 1
+	s.Stats.rwStats.writeOp += 1
 
 	_, recordOk := s.table.Load(key)
 
