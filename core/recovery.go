@@ -91,7 +91,7 @@ func redoLog(startPos int64, s Storage) {
 
 	for logScanner.Scan() {
 		logEntry := logScanner.Text()
-		query := strings.SplitN(logEntry, " ", 3)[2]
+		query := strings.SplitN(logEntry, " ", 2)[1]
 
 		op, key, value := parseQuery(query)
 

@@ -1,8 +1,10 @@
 package core
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"time"
 )
 
 type DBLogger struct {
@@ -18,14 +20,14 @@ func initLogger() (logger DBLogger) {
 	}
 
 	logger.logFile = f
-	logger.logger = log.New(f, "", log.LstdFlags)
+	logger.logger = log.New(f, "", 0)
 
 	return
 }
 
 func (logger DBLogger) writeToDisk(logEntry string) int64  {
 	currentPos, _ := logger.logFile.Seek(0, 1)
-	logger.logger.Print(logEntry)
+	logger.logger.Print(fmt.Sprintf("%d %s", time.Now().UnixNano()/1000, logEntry))
 	err := logger.logFile.Sync()
 
 	if err != nil {
