@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/robfig/cron"
 	"log"
-	"math"
 	"os"
 	"strconv"
 	"time"
@@ -55,8 +54,6 @@ func makeCheckpoint(storage *Storage) {
 	logPos := storage.logger.writeToDisk("begin_checkpoint")
 	log.Println("Checkpoint: start")
 
-	startTs := float64(time.Now().UnixNano())/math.Pow(10, 9)
-
 	storage.table.Range(copyRecord)
 
 	err = writer.Flush()
@@ -70,10 +67,6 @@ func makeCheckpoint(storage *Storage) {
 		log.Printf("Can not make a checkpoint: %s\n", err)
 		return
 	}
-
-	endTs := float64(time.Now().UnixNano())/math.Pow(10, 9)
-
-	storage.Stats.CheckpointTs = append(storage.Stats.CheckpointTs, [2]float64{startTs, endTs})
 
 	storage.logger.writeToDisk("end_checkpoint")
 
