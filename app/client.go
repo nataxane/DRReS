@@ -9,8 +9,8 @@ import (
 	"os"
 )
 
-func SocketClient(port *string) {
-	addr := net.JoinHostPort("localhost", *port)
+func SocketClient(host *string, port *string) {
+	addr := net.JoinHostPort(*host, *port)
 	conn, err := net.Dial("tcp", addr)
 
 	defer conn.Close()
@@ -41,9 +41,10 @@ func SocketClient(port *string) {
 }
 
 func main() {
-	port := flag.String("p", "8080", "port")
+	host := flag.String("host", "localhost", "host")
+	port := flag.String("port", "8080", "port")
 
 	flag.Parse()
 
-	SocketClient(port)
+	SocketClient(host, port)
 }

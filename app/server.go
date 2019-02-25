@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"flag"
+	"fmt"
 	"github.com/DRReS/core"
 	"io"
 	"log"
@@ -72,15 +74,15 @@ func handler(clientId int, conn net.Conn, storage core.Storage, stopChan chan st
 	}
 }
 
-func SocketServer() {
-	addr, _ := net.ResolveTCPAddr("tcp", "localhost:8080")
+func SocketServer(hostname string, port *string) {
+	addr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%s", hostname, *port))
 	listener, err := net.ListenTCP("tcp", addr)
 
 	if err != nil {
-		log.Fatalf("Socket listen port 8080 failed, %s", err)
+		log.Fatalf("Socket listen port %s failed, %s", *port, err)
 	}
 
-	log.Println("Begin listen to port: 8080")
+	log.Printf("Begin listen to port: %s\n", *port)
 
 	storage := core.InitStorage()
 
@@ -128,5 +130,11 @@ func SocketServer() {
 
 func main() {
 	log.SetFlags(log.Lmicroseconds)
-	SocketServer()
+
+	port := flag.String("p", "8080", "port")
+	flag.Parse()
+
+	hostname, _ := os.Hostname()
+
+	SocketServer(hostname, port)
 }

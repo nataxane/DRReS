@@ -8,15 +8,15 @@ import (
 	"net"
 )
 
-func connectServer() net.Conn {
-	addr := net.JoinHostPort("localhost", "8080")
+func connectServer(host *string, port *string) net.Conn {
+	addr := net.JoinHostPort(*host, *port)
 	conn, err := net.Dial("tcp", addr)
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	log.Println("Connected to port 8080")
+	log.Printf("Connected to port %s\n", port)
 
 	buff := make([]byte, 1024)
 	n, _ := conn.Read(buff)
@@ -92,10 +92,11 @@ func generateWorkload(conn net.Conn, queryNum *int) {
 }
 
 func main() {
-	conn := connectServer()
-
+	host := flag.String("host", "localhost", "host")
+	port := flag.String("port", "8080", "port")
 	size := flag.Int("size", 1000, "workload size")
 	flag.Parse()
 
+	conn := connectServer(host, port)
 	generateWorkload(conn, size)
 }
