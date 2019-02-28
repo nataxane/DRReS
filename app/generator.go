@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"time"
 )
 
 func connectServer(host *string, port *string) net.Conn {
@@ -48,6 +49,8 @@ func generateWorkload(conn net.Conn, queryNum *int) {
 	)
 
 	defer conn.Close()
+
+	rand.Seed(time.Now().UnixNano())
 
 	for i := 0; i < *queryNum; i++ {
 		if len(keys) == 0 {

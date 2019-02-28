@@ -76,7 +76,6 @@ func handler(clientId int, conn net.Conn, storage core.Storage, stopChan chan st
 
 func SocketServer(hostname string, port *string) {
 	addr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%s", hostname, *port))
-	fmt.Printf("%s:%s", hostname, *port)
 	listener, err := net.ListenTCP("tcp", addr)
 
 	if err != nil {
