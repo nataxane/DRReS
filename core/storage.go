@@ -55,8 +55,7 @@ func (s *Storage) Read(key string) (string, error) {
 }
 
 func (s *Storage) Insert(key string, value Record) error {
-	s.Stats.writeOp += 1
-
+	s.Stats.readOp += 1
 	_, recordOk := s.table.Load(key)
 
 	if recordOk == true {
@@ -64,14 +63,16 @@ func (s *Storage) Insert(key string, value Record) error {
 	} else {
 		logEntry := fmt.Sprintf("insert %s %s\n", key, value)
 		s.logger.writeToDisk(logEntry)
+
+		s.Stats.writeOp += 1
 		s.table.Store(key, value)
+
 		return nil
 	}
 }
 
 func (s *Storage) Update(key string, value Record) error {
-	s.Stats.writeOp += 1
-
+	s.Stats.readOp += 1
 	_, recordOk := s.table.Load(key)
 
 	if recordOk == false {
@@ -79,14 +80,16 @@ func (s *Storage) Update(key string, value Record) error {
 	} else {
 		logEntry := fmt.Sprintf("update %s %s\n", key, value)
 		s.logger.writeToDisk(logEntry)
+
+		s.Stats.writeOp += 1
 		s.table.Store(key, value)
+
 		return nil
 	}
 }
 
 func (s *Storage) Delete(key string) error {
-	s.Stats.writeOp += 1
-
+	s.Stats.readOp += 1
 	_, recordOk := s.table.Load(key)
 
 	if recordOk == false {
@@ -94,7 +97,10 @@ func (s *Storage) Delete(key string) error {
 	} else {
 		logEntry := fmt.Sprintf("delete %s\n", key)
 		s.logger.writeToDisk(logEntry)
+
+		s.Stats.writeOp += 1
 		s.table.Delete(key)
+
 		return nil
 	}
 }
