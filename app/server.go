@@ -64,7 +64,7 @@ func handler(clientId int, conn net.Conn, storage core.Storage, stopChan chan st
 			}
 
 			query := string(buf[:n])
-			log.Printf("Recieved query from %d: %s", clientId, query)
+			//log.Printf("Recieved query from %d: %s", clientId, query)
 
 			reply := core.ProcessQuery(query, storage)
 
