@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -17,11 +18,10 @@ func connectServer(host *string, port *string) net.Conn {
 		log.Fatalln(err)
 	}
 
-	log.Printf("Connected to port %s\n", port)
+	log.Printf("Connected to port %s\n", *port)
 
 	buff := make([]byte, 1024)
-	n, _ := conn.Read(buff)
-	fmt.Printf("%s\n", buff[:n])
+	conn.Read(buff)
 
 	return conn
 }
@@ -39,7 +39,7 @@ func randomStringGenerator() string {
 	return string(b)
 }
 
-func generateWorkload(conn net.Conn, queryNum *int) {
+func generateWorkload(conn net.Conn, queryNum *int, pool *sync.WaitGroup) {
 	var (
 		randInt int
 		op, value string
@@ -54,7 +54,7 @@ func generateWorkload(conn net.Conn, queryNum *int) {
 
 	for i := 0; i < *queryNum; i++ {
 		if len(keys) == 0 {
-			randInt = rand.Intn(40)
+			randInt = rand.Intn(45)
 		} else {
 			randInt = rand.Intn(100)
 		}
@@ -92,14 +92,28 @@ func generateWorkload(conn net.Conn, queryNum *int) {
 		buff := make([]byte, 1024)
 		conn.Read(buff)
 	}
+
+	pool.Done()
+}
+
+func runClient(host *string, port *string, queryNum *int, pool *sync.WaitGroup) {
+	conn := connectServer(host, port)
+	generateWorkload(conn, queryNum, pool)
 }
 
 func main() {
 	host := flag.String("host", "localhost", "host")
 	port := flag.String("port", "8080", "port")
 	size := flag.Int("size", 1000, "workload size")
+	threads := flag.Int("clients", 1, "number of clients")
 	flag.Parse()
 
-	conn := connectServer(host, port)
-	generateWorkload(conn, size)
+	pool := sync.WaitGroup{}
+
+	for i := 0; i < *threads; i++  {
+		pool.Add(1)
+		go runClient(host, port, size, &pool)
+	}
+
+	pool.Wait()
 }
