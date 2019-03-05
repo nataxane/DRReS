@@ -102,6 +102,11 @@ func SocketServer(hostname string, port *string) {
 		select {
 		case <-quitChan:
 			log.Println("Shutting down...")
+
+			//wait for the next scheduled checkpoint and then stop accepting queries
+			storage.Quit <- true
+			<- storage.Quit
+
 			close(stopHandlerChan)
 			clientPool.Wait()
 			return

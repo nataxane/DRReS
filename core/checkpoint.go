@@ -24,6 +24,17 @@ func (s *Storage) RunCheckpointing() {
 }
 
 func makeCheckpoint(storage *Storage) {
+	select {
+	case <-storage.Quit:
+		close(storage.Quit)
+		return
+	default:
+		_makeCheckpoint(storage)
+		return
+	}
+}
+
+func _makeCheckpoint(storage *Storage) {
 	currentSnapshotFileName := fmt.Sprintf("%s/%s", snapshotDir, strconv.FormatInt(time.Now().Unix(), 10))
 	snapshotFile, err := os.OpenFile(currentSnapshotFileName, os.O_WRONLY | os.O_CREATE, 0666)
 
