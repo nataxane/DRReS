@@ -64,8 +64,8 @@ func (s *Storage) Insert(key string, value Record) error {
 		logEntry := fmt.Sprintf("insert %s %s\n", key, value)
 		s.logger.writeToDisk(logEntry)
 
-		s.Stats.writeOp += 1
 		s.table.Store(key, value)
+		s.Stats.writeOp += 1
 
 		return nil
 	}
@@ -81,8 +81,8 @@ func (s *Storage) Update(key string, value Record) error {
 		logEntry := fmt.Sprintf("update %s %s\n", key, value)
 		s.logger.writeToDisk(logEntry)
 
-		s.Stats.writeOp += 1
 		s.table.Store(key, value)
+		s.Stats.writeOp += 1
 
 		return nil
 	}
@@ -98,8 +98,8 @@ func (s *Storage) Delete(key string) error {
 		logEntry := fmt.Sprintf("delete %s\n", key)
 		s.logger.writeToDisk(logEntry)
 
-		s.Stats.writeOp += 1
 		s.table.Delete(key)
+		s.Stats.writeOp += 1
 
 		return nil
 	}
