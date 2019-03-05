@@ -45,7 +45,7 @@ func generateWorkload(conn net.Conn, queryNum *int, pool *sync.WaitGroup) {
 		op, value string
 		key int
 		query string
-		keys = make([]int, 0, 1000)
+		deletedKeys []int
 	)
 
 	defer conn.Close()
@@ -53,32 +53,30 @@ func generateWorkload(conn net.Conn, queryNum *int, pool *sync.WaitGroup) {
 	rand.Seed(time.Now().UnixNano())
 
 	for i := 0; i < *queryNum; i++ {
-		if len(keys) == 0 {
-			randInt = rand.Intn(45)
+		if len(deletedKeys) == 0 {
+			randInt = rand.Intn(90)
 		} else {
 			randInt = rand.Intn(100)
 		}
 
 		switch {
-		case randInt < 45:
-			op = "insert"
-			key = rand.Intn(*queryNum*10)
-			value = randomStringGenerator()
-			keys = append(keys, key)
-		case randInt < 55:
-			op = "read"
-			keyIdx := rand.Intn(len(keys))
-			key = keys[keyIdx]
-		case randInt < 80:
+		case randInt < 60:
 			op = "update"
-			keyIdx := rand.Intn(len(keys))
-			key = keys[keyIdx]
+			key = rand.Intn(4010000)
 			value = randomStringGenerator()
-		case randInt < 100:
+		case randInt < 80:
+			op = "read"
+			key = rand.Intn(4010000)
+		case randInt < 90:
 			op = "delete"
-			keyIdx := rand.Intn(len(keys))
-			key = keys[keyIdx]
-			keys = append(keys[:keyIdx], keys[keyIdx+1:]...)
+			key := rand.Intn(4010000)
+			deletedKeys = append(deletedKeys, key)
+		case randInt < 100:
+			op = "insert"
+			keyIdx := rand.Intn(len(deletedKeys))
+			key = deletedKeys[keyIdx]
+			value = randomStringGenerator()
+			deletedKeys = append(deletedKeys[:keyIdx], deletedKeys[keyIdx+1:]...)
 		}
 
 		switch {
