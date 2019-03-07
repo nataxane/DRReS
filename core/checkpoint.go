@@ -13,6 +13,7 @@ import (
 type Checkpointer struct {
 	Scheduler *cron.Cron
 	Quit chan bool
+	lastWriteOps int
 }
 
 func RunCheckpointing(s Storage) *Checkpointer {
@@ -40,7 +41,12 @@ func (cp *Checkpointer) makeCheckpoint(storage Storage) {
 		close(cp.Quit)
 		return
 	default:
-		_makeCheckpoint(storage)
+		if storage.Stats.writeOp > cp.lastWriteOps {
+			cp.lastWriteOps = storage.Stats.writeOp
+			_makeCheckpoint(storage)
+		} else {
+			log.Printf("Nothing changed. Skip checkpoint.")
+		}
 		return
 	}
 }
