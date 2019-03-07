@@ -22,12 +22,12 @@ func (s *Storage) RunStats() {
 	scheduler := cron.New()
 
 	dumpToArray := func() {
-		s.Stats.ts = append(s.Stats.ts, int(time.Now().Unix()) - throughputWindowSize)
-		s.Stats.readQps = append(s.Stats.readQps, s.Stats.readOp)
-		s.Stats.writeQps = append(s.Stats.writeQps, s.Stats.writeOp)
+		currentReadQps := s.Stats.readOp - sum(s.Stats.readQps)
+		currentWriteQps := s.Stats.writeOp - sum(s.Stats.writeQps)
 
-		s.Stats.readOp = 0
-		s.Stats.writeOp = 0
+		s.Stats.ts = append(s.Stats.ts, int(time.Now().Unix()) - throughputWindowSize)
+		s.Stats.readQps = append(s.Stats.readQps, currentReadQps)
+		s.Stats.writeQps = append(s.Stats.writeQps, currentWriteQps)
 	}
 
 	err := scheduler.AddFunc(
