@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"github.com/DRReS/core"
@@ -28,19 +27,14 @@ var clientId = 0
 
 func handler(clientId int, conn net.Conn, storage core.Storage, stopChan chan struct{}, clientPool *sync.WaitGroup) {
 	defer func() {
-		conn.Close()
-		clientPool.Done()
 		log.Printf("Client %d disconnected", clientId)
+		clientPool.Done()
+		conn.Close()
 	}()
 
-	var (
-		buf = make([]byte, 1024)
-		reader = bufio.NewReader(conn)
-		writer = bufio.NewWriter(conn)
-	)
+	buf := make([]byte, 1024)
 
-	writer.Write(welcome)
-	writer.Flush()
+	conn.Write(welcome)
 
 	for {
 		select {
@@ -48,8 +42,8 @@ func handler(clientId int, conn net.Conn, storage core.Storage, stopChan chan st
 			return
 		default:
 			conn.SetReadDeadline(time.Now().Add(1e9))
-			n, err := reader.Read(buf)
 
+			n, err := conn.Read(buf)
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 				continue
 			}
@@ -64,39 +58,32 @@ func handler(clientId int, conn net.Conn, storage core.Storage, stopChan chan st
 			}
 
 			query := string(buf[:n])
-			//log.Printf("Recieved query from %d: %s", clientId, query)
-
 			reply := core.ProcessQuery(query, storage)
 
-			writer.Write(reply)
-			writer.Flush()
+			conn.Write(reply)
 		}
 	}
 }
 
 func SocketServer(hostname string, port *string) {
+	var (
+		quitChan = make(chan os.Signal, 1)
+		stopHandlerChan = make(chan struct{})
+		clientPool = sync.WaitGroup{}
+	)
+
+	storage := core.InitStorage()
+	checkpointer := core.RunCheckpointing(storage)
+
 	addr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%s", hostname, *port))
 	listener, err := net.ListenTCP("tcp", addr)
-
 	if err != nil {
 		log.Fatalf("Socket listen port %s failed, %s", *port, err)
 	}
 
 	log.Printf("Begin listen to port: %s\n", *port)
 
-	storage := core.InitStorage()
-
-	defer func() {
-		listener.Close()
-		storage.Stop()
-	}()
-
-	quitChan := make(chan os.Signal, 1)
 	signal.Notify(quitChan, os.Interrupt, os.Kill, syscall.SIGTERM)
-
-	stopHandlerChan := make(chan struct{})
-
-	clientPool := sync.WaitGroup{}
 
 	for {
 		select {
@@ -104,11 +91,16 @@ func SocketServer(hostname string, port *string) {
 			log.Println("Shutting down...")
 
 			//wait for the next scheduled checkpoint and then stop accepting queries
-			storage.Quit <- true
-			<- storage.Quit
+			checkpointer.Quit <- true
+			<- checkpointer.Quit
+			checkpointer.Scheduler.Stop()
 
 			close(stopHandlerChan)
 			clientPool.Wait()
+
+			listener.Close()
+			storage.Stop()
+
 			return
 		default:
 			listener.SetDeadline(time.Now().Add(1e9))
@@ -141,6 +133,7 @@ func main() {
 
 	hostname, _ := os.Hostname()
 
+	// dirty hack
 	if hostname == "diufmac48.unifr.ch" {
 		hostname = "localhost"
 	}

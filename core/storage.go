@@ -14,33 +14,26 @@ type Record string
 type Storage struct {
 	table *sync.Map
 	logger DBLogger
-	checkpointScheduler *cron.Cron
 	statsScheduler *cron.Cron
 	Stats *RWStats
-	Quit chan bool
 }
 
 func InitStorage() (storage Storage) {
 	dbLogger := initLogger()
-	quitChan := make(chan bool)
 
 	storage = Storage{
 		table: &sync.Map{},
 		logger: dbLogger,
 		Stats:  &RWStats{},
-		Quit: quitChan,
 	}
 
 	storage.Recover()
-
 	storage.RunStats()
-	storage.RunCheckpointing()
 
 	return
 }
 
 func (s *Storage) Stop() {
-	s.checkpointScheduler.Stop()
 	s.statsScheduler.Stop()
 	s.Stats.DumpToDisk()
 	//s.DumpToDisk(backupFileName)
