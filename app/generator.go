@@ -60,23 +60,23 @@ func generateWorkload(conn net.Conn, queryNum *int, pool *sync.WaitGroup) {
 		}
 
 		switch {
-		case randInt < 60:
-			op = "update"
-			key = rand.Intn(4010000)
-			value = randomStringGenerator()
 		case randInt < 80:
-			op = "read"
-			key = rand.Intn(4010000)
-		case randInt < 90:
-			op = "delete"
-			key := rand.Intn(4010000)
-			deletedKeys = append(deletedKeys, key)
-		case randInt < 100:
-			op = "insert"
-			keyIdx := rand.Intn(len(deletedKeys))
-			key = deletedKeys[keyIdx]
+			op = "update"
+			key = rand.Intn(4000000)
 			value = randomStringGenerator()
-			deletedKeys = append(deletedKeys[:keyIdx], deletedKeys[keyIdx+1:]...)
+		case randInt < 100:
+			op = "read"
+			key = rand.Intn(4000000)
+		//case randInt < 90:
+		//	op = "delete"
+		//	key := rand.Intn(4010000)
+		//	deletedKeys = append(deletedKeys, key)
+		//case randInt < 100:
+		//	op = "insert"
+		//	keyIdx := rand.Intn(len(deletedKeys))
+		//	key = deletedKeys[keyIdx]
+		//	value = randomStringGenerator()
+		//	deletedKeys = append(deletedKeys[:keyIdx], deletedKeys[keyIdx+1:]...)
 		}
 
 		switch {
@@ -85,10 +85,18 @@ func generateWorkload(conn net.Conn, queryNum *int, pool *sync.WaitGroup) {
 		default:
 			query = fmt.Sprintf("%s %d", op, key)
 		}
-		conn.Write([]byte(query))
+		_, err := conn.Write([]byte(query))
+		if err != nil {
+			log.Println(err)
+			return
+		}
 
 		buff := make([]byte, 1024)
-		conn.Read(buff)
+		_, err = conn.Read(buff)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 	}
 
 	pool.Done()
