@@ -72,9 +72,6 @@ func SocketServer(hostname string, port *string) {
 		clientPool = sync.WaitGroup{}
 	)
 
-	storage := core.InitStorage()
-	checkpointer := core.RunCheckpointing(storage)
-
 	addr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%s", hostname, *port))
 	listener, err := net.ListenTCP("tcp", addr)
 	if err != nil {
@@ -82,6 +79,9 @@ func SocketServer(hostname string, port *string) {
 	}
 
 	log.Printf("Begin listen to port: %s\n", *port)
+
+	storage := core.InitStorage()
+	checkpointer := core.RunCheckpointing(storage)
 
 	signal.Notify(quitChan, os.Interrupt, os.Kill, syscall.SIGTERM)
 
