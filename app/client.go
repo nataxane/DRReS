@@ -13,11 +13,11 @@ func SocketClient(host *string, port *string) {
 	addr := net.JoinHostPort(*host, *port)
 	conn, err := net.Dial("tcp", addr)
 
-	defer conn.Close()
-
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	defer conn.Close()
 
 	log.Printf("Connected to port %s\n\n", *port)
 

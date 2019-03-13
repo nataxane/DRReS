@@ -44,6 +44,7 @@ func handler(clientId int, conn net.Conn, storage core.Storage, stopChan chan st
 			conn.SetReadDeadline(time.Now().Add(1e9))
 
 			n, err := conn.Read(buf)
+
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 				continue
 			}
@@ -78,7 +79,7 @@ func SocketServer(hostname string, port *string) {
 		log.Fatalf("Socket listen port %s failed, %s", *port, err)
 	}
 
-	log.Printf("Begin listen to port: %s\n", *port)
+	log.Printf("Begin listen to %s:%s\n", hostname, *port)
 
 	storage := core.InitStorage()
 	checkpointer := core.RunCheckpointing(storage)
