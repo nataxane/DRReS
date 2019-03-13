@@ -2,6 +2,7 @@ package core
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,44 +13,26 @@ import (
 )
 
 
-func getLastCheckpoint() (string, int64){
+func getCheckpointList() ([]string, error) {
 	allCheckpoints, err := ioutil.ReadFile(lastCheckpointFileName)
 
 	if err != nil {
-		log.Printf("Can not load snapshot: %v", err)
-		return "", 0
+		return nil, err
 	}
 
-	lines := strings.Split(string(allCheckpoints), "\n")
-	lastCheckpoint := lines[len(lines) - 2]
-
-	checkpointData := strings.Split(lastCheckpoint, "\t")
-	snapshotPath := checkpointData[0]
-	logPos, err := strconv.ParseInt(checkpointData[1], 10, 64)
-
-	if err != nil {
-		log.Printf("Can not load snapshot: %v", err)
-		return "", 0
-	}
-	return snapshotPath, logPos
+	return strings.Split(string(allCheckpoints), "\n"), nil
 }
 
-
-func restoreCheckpoint(s Storage) int64 {
-	snapshotPath, logPos := getLastCheckpoint()
-
-	if logPos == 0 {
-		return 0
-	}
-
+func restoreCheckpoint(s Storage, snapshotPath string) error {
 	snapshotFile, err := os.OpenFile(snapshotPath, os.O_RDONLY, 0666)
-
 	if err != nil {
-		log.Printf("Can not load snapshot: %v", err)
-		return 0
-	} else {
-		log.Printf("Start loading snapshot: %s", snapshotPath)
+		log.Printf("Can not load snapshot %s: %v", snapshotPath, err)
+		return err
 	}
+
+	defer snapshotFile.Close()
+
+	log.Printf("Start loading snapshot %s", snapshotPath)
 
 	buf := make([]byte, recordSize)
 	reader := bufio.NewReader(snapshotFile)
@@ -63,67 +46,160 @@ OUTLOOP:
 		case io.EOF:
 			break OUTLOOP
 		case nil:
-			record := string(buf)
+			record := string(bytes.Trim(buf, "\x00"))
 			kv := strings.Split(record, "\t")
 			s.table.Store(kv[0], kv[1])
 			recCount += 1
 		default:
 			log.Printf("Can not load snapshot: %v", err)
-			return 0
+			return err
 		}
 	}
 
 	log.Printf("Snapshot successfully loaded: %d records", recCount)
-	return logPos
+	return nil
 }
 
-/*
-Right now it's not obvious why do we need timestamps
-	insert/update already updated value – we will reupdate it later anyway
-	delete already deleted value – sync.Map doesn't care
- */
+func validateCheckpointLogEntry(logFile *os.File, logEntryId string, logPos int64) bool {
+	logFile.Seek(logPos, 0)
+
+	buf := make([]byte, recordSize)
+	logFile.Read(buf)
+
+	logEntryParsed := strings.Split(string(buf), " ")
+
+	if logEntryParsed[0] != logEntryId {
+		return false
+	}
+	return true
+}
 
 
-func redoLog(startPos int64, s Storage) {
-	s.logger.logFile.Seek(startPos, 0)  // go to the last begin_checkpoint entry in log
+func parseLogEntry(logEntryBuf []byte) (int, int, string) {
+	logEntry := string(bytes.Trim(logEntryBuf, "\x00"))
+	logEntryParsed := strings.SplitN(logEntry, " ", 3)
 
-	logScanner := bufio.NewScanner(s.logger.logFile)
+	logEntryId := logEntryParsed[0]
+	logEntryIdParsed := strings.Split(logEntryId, "_")
+	wrapId, _ := strconv.Atoi(logEntryIdParsed[0])
+	LSN, _ :=  strconv.Atoi(logEntryIdParsed[1])
 
-	for logScanner.Scan() {
-		logEntry := logScanner.Text()
-		query := strings.SplitN(logEntry, " ", 2)[1]
+	query := logEntryParsed[2]
 
-		op, key, value := parseQuery(query)
+	return wrapId, LSN, query
+}
 
-		switch {
-		case op == "insert" || op == "update":
-			s.table.Store(key, Record(value))
-		case op == "delete":
-			s.table.Delete(key)
-		case op == "begin_checkpoint" || op == "end_checkpoint":
-			continue
-		default:
-			log.Printf("Skip invalid query in the log: %v", query)
-		}
+
+func applyLogEntry(s Storage, query string) {
+	query = strings.TrimSuffix(query, "\n")
+
+	op, key, value := parseQuery(query)
+
+	switch {
+	case op == "insert" || op == "update":
+		s.table.Store(key, Record(value))
+	case op == "delete":
+		s.table.Delete(key)
+	case op == "begin_checkpoint" || op == "end_checkpoint":
+		break
+	default:
+		log.Printf("Skip invalid query in the log: %v", query)
 	}
 }
 
-/*
-Global ToDo:
-	1. Validate recovery (do we really recovered to the last state of the DB?) +
-	2. Make sure that we recover faster with checkpoints +
-	3. Measure throughput with checkpoints 
- */
+func redoLog(checkpointLogEntryPos int64, checkpointLogEntryId string, s Storage) (int64, int, int) {
+	checkpointLogEntryOk := validateCheckpointLogEntry(s.logger.logFile, checkpointLogEntryId, checkpointLogEntryPos)
 
-func (s Storage) Recover() {
+	if checkpointLogEntryOk == false {
+		log.Println("Reloaded snapshot is not in the log. Skip log restoring.")
+		return 0, 0, 0
+	}
+
+	checkpointLogEntryIdParsed := strings.Split(checkpointLogEntryId, "_")
+	currentWrapId, _ := strconv.Atoi(checkpointLogEntryIdParsed[0])
+	currentLSN, _ := strconv.Atoi(checkpointLogEntryIdParsed[1])
+
+	offset := checkpointLogEntryPos + logEntrySize
+
+	reader := bufio.NewReader(s.logger.logFile)
+	buf := make([]byte, logEntrySize)
+
+	newWrap := false
+
+OUTLOOP:
+	for {
+		_, err := reader.Read(buf)
+
+		switch err {
+		case io.EOF:
+			s.logger.logFile.Seek(0, 0)
+			newWrap = true
+		case nil:
+			logEntryWrapId, logEntryLSN, query := parseLogEntry(buf)
+
+			switch {
+			case logEntryWrapId == currentWrapId && newWrap == false:
+				currentPos, _ := s.logger.logFile.Seek(0, 1)
+				offset = currentPos + logEntrySize
+				currentLSN = logEntryLSN
+
+				applyLogEntry(s, query)
+			case logEntryWrapId > currentWrapId && newWrap == true:
+				newWrap = false
+				offset = logEntrySize
+				currentLSN = logEntryLSN
+				currentWrapId += 1
+
+				applyLogEntry(s, query)
+			default:
+				break OUTLOOP
+			}
+
+		default:
+			log.Printf("Can not redo log entries: %v", err)
+		}
+	}
+
+	return offset, currentWrapId, currentLSN
+}
+
+func (s *Storage) Recover() {
 	log.Print("Recovery started")
 
 	start := time.Now().UnixNano()
 
-	logStartPos := restoreCheckpoint(s)
-	redoLog(logStartPos, s)
+	checkpoints, err := getCheckpointList()
 
-	//s.DumpToDisk(recoveredFileName)
+	if err != nil {
+		log.Printf("Recovery failed: %v", err)
+		return
+	}
+
+	var (
+		checkpointInfo []string
+		snapshotRestoreError error
+	)
+
+	for i := len(checkpoints) - 2; i >= 0; i-- {
+		checkpointInfo = strings.Split(checkpoints[i], "\t")
+
+		snapshotRestoreError = restoreCheckpoint(*s, checkpointInfo[1])
+		if snapshotRestoreError == nil {
+			break
+		}
+	}
+
+	if snapshotRestoreError != nil {
+		log.Printf("Recovery failed: %v", snapshotRestoreError)
+	}
+
+	checkpointLogEntryPos, _ := strconv.ParseInt(checkpointInfo[2], 10, 64)
+
+	logStart, wrapId, LSN := redoLog(checkpointLogEntryPos, checkpointInfo[0], *s)
+
+	s.logger.offset = logStart
+	s.logger.LSN = LSN + 1
+	s.logger.wrapId = wrapId
 
 	end := time.Now().UnixNano()
 

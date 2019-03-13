@@ -13,7 +13,7 @@ type Record string
 
 type Storage struct {
 	table *sync.Map
-	logger DBLogger
+	logger *DBLogger
 	statsScheduler *cron.Cron
 	Stats *RWStats
 }
@@ -23,7 +23,7 @@ func InitStorage() (storage Storage) {
 
 	storage = Storage{
 		table: &sync.Map{},
-		logger: dbLogger,
+		logger: &dbLogger,
 		Stats:  &RWStats{},
 	}
 
@@ -57,7 +57,7 @@ func (s *Storage) Insert(key string, value Record) error {
 	if recordOk == true {
 		return fmt.Errorf("key %v is already in the table", key)
 	} else {
-		logEntry := fmt.Sprintf("insert %s %s\n", key, value)
+		logEntry := fmt.Sprintf("insert %s %s", key, value)
 		s.logger.writeToDisk(logEntry)
 
 		s.table.Store(key, value)
@@ -74,7 +74,7 @@ func (s *Storage) Update(key string, value Record) error {
 	if recordOk == false {
 		return fmt.Errorf("key %v is not in the table", key)
 	} else {
-		logEntry := fmt.Sprintf("update %s %s\n", key, value)
+		logEntry := fmt.Sprintf("update %s %s", key, value)
 		s.logger.writeToDisk(logEntry)
 
 		s.table.Store(key, value)
@@ -91,7 +91,7 @@ func (s *Storage) Delete(key string) error {
 	if recordOk == false {
 		return fmt.Errorf("key %v is not in the table", key)
 	} else {
-		logEntry := fmt.Sprintf("delete %s\n", key)
+		logEntry := fmt.Sprintf("delete %s", key)
 		s.logger.writeToDisk(logEntry)
 
 		s.table.Delete(key)

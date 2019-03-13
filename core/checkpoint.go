@@ -85,7 +85,7 @@ func _makeCheckpoint(storage Storage) {
 	}
 
 	log.Println("Checkpoint: start")
-	logPos := storage.logger.writeToDisk("begin_checkpoint")
+	logPos, logEntryId := storage.logger.writeToDisk("begin_checkpoint")
 
 	storage.table.Range(writeRecordToDisk)
 
@@ -100,17 +100,17 @@ func _makeCheckpoint(storage Storage) {
 		return
 	}
 
-	saveCheckpoint(logPos, currentSnapshotFileName)
+	saveCheckpoint(logEntryId, logPos, currentSnapshotFileName)
 
 	storage.logger.writeToDisk("end_checkpoint")
 	log.Printf("Checkpoint: end (%d records)", recCount)
 }
 
-func saveCheckpoint(logPos int64, fileName string) {
+func saveCheckpoint(logEntryId string, logPos int64, fileName string) {
 	lastCheckpointFile, _ := os.OpenFile(lastCheckpointFileName, os.O_WRONLY | os.O_APPEND | os.O_CREATE, 0666)
 	defer lastCheckpointFile.Close()
 
-	rec := fmt.Sprintf("%s\t%s\n", fileName, strconv.FormatInt(logPos, 10))
+	rec := fmt.Sprintf("%s\t%s\t%s\n", logEntryId, fileName, strconv.FormatInt(logPos, 10))
 
 	_, err := lastCheckpointFile.Write([]byte(rec))
 

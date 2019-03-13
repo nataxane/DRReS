@@ -14,6 +14,10 @@ const (
 	cpFreq = 10  // how often to make checkpoints; in seconds
 	recordSize = 128  //size of records in a snapshot
 
+	//logging
+	maxWriteQps = 15000
+	logEntrySize = 128
+
 	//metrics
 	throughputWindowSize = 1 // in seconds
 )
