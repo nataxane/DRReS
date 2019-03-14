@@ -19,7 +19,7 @@ type DBLogger struct {
 var logMaxSize = maxWriteQps * cpFreq * logEntrySize
 
 func initLogger() (logger DBLogger) {
-	f, err := os.OpenFile(logFileName, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	f, err := os.OpenFile(logFileName, os.O_RDWR | os.O_CREATE, 0666)
 
 	if err != nil {
 		log.Fatalf("error opening log file: %v", err)
