@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -16,7 +17,7 @@ type Checkpointer struct {
 	lastWriteOps int
 }
 
-func RunCheckpointing(s Storage) *Checkpointer {
+func RunCheckpointing(s Storage, checkpointCompactionSync *sync.WaitGroup) *Checkpointer {
 	cp := Checkpointer{
 		Scheduler: cron.New(),
 		Quit: make(chan bool),
@@ -24,7 +25,7 @@ func RunCheckpointing(s Storage) *Checkpointer {
 
 	err := cp.Scheduler.AddFunc(
 		fmt.Sprintf("@every %ds", cpFreq),
-		func() {cp.makeCheckpoint(s)})
+		func() {cp.makeCheckpoint(s, checkpointCompactionSync)})
 
 	if err != nil {
 		log.Panicf("Can not run checkpointing scheduler: %s", err)
@@ -35,18 +36,24 @@ func RunCheckpointing(s Storage) *Checkpointer {
 	return &cp
 }
 
-func (cp *Checkpointer) makeCheckpoint(storage Storage) {
+func (cp *Checkpointer) makeCheckpoint(storage Storage, checkpointCompactionSync *sync.WaitGroup) {
 	select {
 	case <- cp.Quit:
 		close(cp.Quit)
 		return
 	default:
+		checkpointCompactionSync.Wait()
+		checkpointCompactionSync.Add(1)
+
 		if storage.Stats.writeOp > cp.lastWriteOps {
 			cp.lastWriteOps = storage.Stats.writeOp
 			_makeCheckpoint(storage)
 		} else {
 			log.Printf("Nothing changed. Skip checkpoint.")
 		}
+
+		checkpointCompactionSync.Done()
+
 		return
 	}
 }

@@ -15,12 +15,13 @@ import (
 
 func getCheckpointList() ([]string, error) {
 	allCheckpoints, err := ioutil.ReadFile(lastCheckpointFileName)
+	checkpointList := strings.Split(string(allCheckpoints), "\n")
 
 	if err != nil {
 		return nil, err
 	}
 
-	return strings.Split(string(allCheckpoints), "\n"), nil
+	return checkpointList[:len(checkpointList) - 1], nil
 }
 
 func restoreCheckpoint(s Storage, snapshotPath string) error {
@@ -180,7 +181,7 @@ func (s *Storage) Recover() {
 		snapshotRestoreError error
 	)
 
-	for i := len(checkpoints) - 2; i >= 0; i-- {
+	for i := len(checkpoints) - 1; i >= 0; i-- {
 		checkpointInfo = strings.Split(checkpoints[i], "\t")
 
 		snapshotRestoreError = restoreCheckpoint(*s, checkpointInfo[1])

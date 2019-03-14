@@ -9,7 +9,6 @@ const (
 	snapshotDir = "snapshots"
 	statsFileName = "throughput_stats"
 
-
 	//checkpointing
 	cpFreq = 10  // how often to make checkpoints; in seconds
 	recordSize = 128  //size of records in a snapshot
@@ -18,6 +17,10 @@ const (
 	maxWriteQps = 15000
 	logEntrySize = 128
 
+	//compaction
+	keepLastNCheckpoints = 5
+
 	//metrics
 	throughputWindowSize = 1 // in seconds
+
 )

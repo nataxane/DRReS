@@ -70,6 +70,8 @@ func SocketServer(hostname string, port *string) {
 	var (
 		quitChan = make(chan os.Signal, 1)
 		stopHandlerChan = make(chan struct{})
+
+		checkpointCompactionSync = sync.WaitGroup{}
 		clientPool = sync.WaitGroup{}
 	)
 
@@ -82,7 +84,8 @@ func SocketServer(hostname string, port *string) {
 	log.Printf("Begin listen to %s:%s\n", hostname, *port)
 
 	storage := core.InitStorage()
-	checkpointer := core.RunCheckpointing(storage)
+	checkpointer := core.RunCheckpointing(storage, &checkpointCompactionSync)
+	compactionScheduler := core.RunCompactionScheduler(&checkpointCompactionSync)
 
 	signal.Notify(quitChan, os.Interrupt, os.Kill, syscall.SIGTERM)
 
@@ -95,6 +98,7 @@ func SocketServer(hostname string, port *string) {
 			checkpointer.Quit <- true
 			<- checkpointer.Quit
 			checkpointer.Scheduler.Stop()
+			compactionScheduler.Stop()
 
 			close(stopHandlerChan)
 			clientPool.Wait()
