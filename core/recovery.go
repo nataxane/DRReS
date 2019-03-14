@@ -192,6 +192,7 @@ func (s *Storage) Recover() {
 
 	if snapshotRestoreError != nil {
 		log.Printf("Recovery failed: %v", snapshotRestoreError)
+		return
 	}
 
 	checkpointLogEntryPos, _ := strconv.ParseInt(checkpointInfo[2], 10, 64)

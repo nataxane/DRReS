@@ -50,7 +50,6 @@ func compactSnapshotDir(checkpointList []string) error {
 
 	for i := range checkpointList {
 		checkpointInfo := strings.Split(checkpointList[i], "\t")
-		fmt.Println(checkpointInfo)
 		snapshotsToKeep[checkpointInfo[1]] = 1
 	}
 
