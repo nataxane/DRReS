@@ -68,9 +68,9 @@ func processWriteQuery(storage Storage, op, key, value string) (result []byte){
 
 	switch op {
 	case "insert":
-		err = storage.Insert(key, Record(value))
+		err = storage.Insert(key, value)
 	case "update":
-		err = storage.Update(key, Record(value))
+		err = storage.Update(key, value)
 	case "delete":
 		err = storage.Delete(key)
 	}

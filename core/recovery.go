@@ -102,7 +102,7 @@ func applyLogEntry(s Storage, query string) {
 
 	switch {
 	case op == "insert" || op == "update":
-		s.table.Store(key, Record(value))
+		s.table.Store(key, value)
 	case op == "delete":
 		s.table.Delete(key)
 	case op == "begin_checkpoint" || op == "end_checkpoint":

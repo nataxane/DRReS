@@ -8,9 +8,6 @@ import (
 	"sync"
 )
 
-type Record string
-
-
 type Storage struct {
 	table *sync.Map
 	logger *DBLogger
@@ -50,7 +47,7 @@ func (s *Storage) Read(key string) (string, error) {
 	}
 }
 
-func (s *Storage) Insert(key string, value Record) error {
+func (s *Storage) Insert(key string, value string) error {
 	s.Stats.readOp += 1
 	_, recordOk := s.table.Load(key)
 
@@ -67,7 +64,7 @@ func (s *Storage) Insert(key string, value Record) error {
 	}
 }
 
-func (s *Storage) Update(key string, value Record) error {
+func (s *Storage) Update(key string, value string) error {
 	s.Stats.readOp += 1
 	_, recordOk := s.table.Load(key)
 
