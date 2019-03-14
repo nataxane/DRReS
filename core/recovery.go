@@ -25,6 +25,8 @@ func getCheckpointList() ([]string, error) {
 }
 
 func restoreCheckpoint(s Storage, snapshotPath string) error {
+	start := time.Now().UnixNano()
+
 	snapshotFile, err := os.OpenFile(snapshotPath, os.O_RDONLY, 0666)
 	if err != nil {
 		log.Printf("Can not load snapshot %s: %v", snapshotPath, err)
@@ -57,7 +59,9 @@ OUTLOOP:
 		}
 	}
 
-	log.Printf("Snapshot successfully loaded: %d records", recCount)
+	end := time.Now().UnixNano()
+
+	log.Printf("Snapshot successfully loaded: %d records, %.2f ms", recCount, float64(end - start)/ 1000 / 1000)
 	return nil
 }
 
@@ -127,6 +131,9 @@ func redoLog(checkpointLogEntryPos int64, checkpointLogEntryId string, s Storage
 
 	newWrap := false
 
+	recCount := 0
+	start := time.Now().UnixNano()
+
 OUTLOOP:
 	for {
 		_, err := reader.Read(buf)
@@ -145,6 +152,7 @@ OUTLOOP:
 				currentLSN = logEntryLSN
 
 				applyLogEntry(s, query)
+				recCount += 1
 			case logEntryWrapId > currentWrapId && newWrap == true:
 				newWrap = false
 				offset = logEntrySize
@@ -152,6 +160,7 @@ OUTLOOP:
 				currentWrapId += 1
 
 				applyLogEntry(s, query)
+				recCount += 1
 			default:
 				break OUTLOOP
 			}
@@ -160,6 +169,8 @@ OUTLOOP:
 			log.Printf("Can not redo log entries: %v", err)
 		}
 	}
+	end := time.Now().UnixNano()
+	log.Printf("Log successfully loaded: %d records, %.2f ms", recCount, float64(end - start)/ 1000 / 1000)
 
 	return offset, currentWrapId, currentLSN
 }
