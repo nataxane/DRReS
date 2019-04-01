@@ -147,16 +147,15 @@ OUTLOOP:
 
 			switch {
 			case logEntryWrapId == currentWrapId && newWrap == false:
-				currentPos, _ := s.logger.logFile.Seek(0, 1)
-				offset = currentPos + logEntrySize
+				offset += logEntrySize
 				currentLSN = logEntryLSN
 
 				applyLogEntry(s, query)
 				recCount += 1
 			case logEntryWrapId > currentWrapId && newWrap == true:
-				newWrap = false
 				offset = logEntrySize
 				currentLSN = logEntryLSN
+				newWrap = false
 				currentWrapId += 1
 
 				applyLogEntry(s, query)
