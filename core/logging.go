@@ -16,7 +16,7 @@ type DBLogger struct {
 	mx sync.Mutex
 }
 
-var logMaxSize = maxWriteQps * cpFreq * logEntrySize
+var logMaxSize = maxWriteQps * cpFreq * logEntrySize * keepLastNCheckpoints
 
 func initLogger() (logger DBLogger) {
 	f, err := os.OpenFile(logFileName, os.O_RDWR | os.O_CREATE, 0666)
